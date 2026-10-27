@@ -26,7 +26,7 @@ it('treats the situation as optional', function () {
 });
 
 it('works as a plain form, landing back on the form with the thanks', function () {
-    joinWaitlist(json: false)->assertRedirect(route('home').'?waitlist=joined#waitlist');
+    joinWaitlist(json: false)->assertRedirect(route('en.home').'?waitlist=joined#waitlist');
     expect(Subscriber::count())->toBe(1);
 
     $html = $this->get('/?waitlist=joined')->assertOk()->getContent();
@@ -36,7 +36,7 @@ it('works as a plain form, landing back on the form with the thanks', function (
 
 it('refuses an address that isn’t one', function () {
     joinWaitlist(['email' => 'kadri'])->assertStatus(422)->assertJson(['message' => 'Enter an email address like name@example.com.']);
-    joinWaitlist(['email' => 'kadri'], json: false)->assertRedirect(route('home').'?waitlist=invalid#waitlist');
+    joinWaitlist(['email' => 'kadri'], json: false)->assertRedirect(route('en.home').'?waitlist=invalid#waitlist');
     expect(Subscriber::count())->toBe(0);
 
     $this->get('/?waitlist=invalid')->assertSee('aria-invalid="true"', false);

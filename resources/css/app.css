@@ -2,6 +2,7 @@
 
 @source '../views';
 @source '../js';
+@source '../guides';
 
 /*
  * Hooli: sage for calm, warm cream for the page, blush for what deserves a second look. Nothing on the page is
@@ -196,6 +197,94 @@
     .tag-know {
         background: var(--color-blush-pale);
         color: var(--color-clay);
+    }
+
+    /* ---------------------------------------------------------------------------------------------------------
+     * A guide's text, written in Markdown (resources/guides). Set for reading: a little larger than the page,
+     * looser lines, sections that breathe. Tables scroll on their own on phones instead of the page.
+     * ------------------------------------------------------------------------------------------------------ */
+    .prose {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 1.1em;
+        font-size: 19px;
+        line-height: 1.7;
+    }
+
+    .prose h2 {
+        margin-top: 1.4em;
+        font-size: clamp(30px, 3.2vw, 38px);
+        scroll-margin-top: 24px;
+    }
+
+    .prose h3 {
+        margin-top: .8em;
+        font-size: 25px;
+    }
+
+    .prose h2 + *, .prose h3 + * {
+        margin-top: -.2em;
+    }
+
+    .prose a {
+        color: var(--color-sage-deep);
+        text-decoration: underline;
+        text-decoration-thickness: 1px;
+        text-underline-offset: .2em;
+    }
+
+    .prose a:hover {
+        text-decoration-thickness: 2px;
+    }
+
+    .prose strong {
+        font-weight: 600;
+    }
+
+    .prose ul, .prose ol {
+        display: grid;
+        gap: .5em;
+        padding-left: 1.3em;
+    }
+
+    .prose ul {
+        list-style: disc;
+    }
+
+    .prose ol {
+        list-style: decimal;
+    }
+
+    .prose li::marker {
+        color: var(--color-sage);
+    }
+
+    .prose table {
+        display: block;
+        overflow-x: auto;
+        border-collapse: collapse;
+        font-size: 16px;
+        line-height: 1.5;
+    }
+
+    .prose th, .prose td {
+        min-width: 11em;
+        border-bottom: 1px solid var(--color-line);
+        padding: .8em 1.2em .8em 0;
+        text-align: left;
+        vertical-align: top;
+    }
+
+    .prose th {
+        font-weight: 600;
+        color: var(--color-sage-deep);
+    }
+
+    /* The sources: the last section, set small, like the answer cards' sources. */
+    .prose h2:last-of-type ~ ul {
+        font-size: 16px;
+        line-height: 1.5;
+        color: var(--color-ink-2);
     }
 
     /* ---------------------------------------------------------------------------------------------------------

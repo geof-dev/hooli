@@ -5,7 +5,7 @@ Usage: python3 scripts/pictures.py   (run from the site root; needs Pillow and f
 The icon is a big capital H, cut from Newsreader like the wordmark, in cream on a sage tile. This script writes:
   resources/views/partials/icon-tile.blade.php   the icon inline, for the page
   public/favicon.svg, favicon.ico, apple-touch-icon.png, images/icon-192.png, images/icon-512.png
-  public/images/og.jpg                           the share picture, 1200x630
+  public/images/og.jpg, og-fr.jpg, og-et.jpg      the share picture in each language, 1200x630
   public/images/logo/                            the logo files: icon, H alone, icon with the wordmark, as SVG and PNG
 """
 import pathlib
@@ -147,7 +147,19 @@ def heading_font(size: int) -> ImageFont.FreeTypeFont:
     return face
 
 
-def share_picture(path: pathlib.Path):
+# The share picture's words, in each of the site's languages: the headline in three lines, then two lines of text.
+# English is og.jpg; the others og-{locale}.jpg, as the page's layout expects.
+SHARE_WORDS = {
+    'en': (['Care for your', 'hormones, one', 'scan at a time.'],
+           ['Scan everyday products and medicines.', 'Calm, evidence-based answers. Join the waitlist.']),
+    'fr': (['Prenez soin de vos', 'hormones, un scan', 'à la fois.'],
+           ['Scannez produits du quotidien et médicaments.', 'Des réponses calmes et sourcées. Liste d’attente ouverte.']),
+    'et': (['Hooli oma', 'hormoonidest –', 'skaneeri ja saa aru.'],
+           ['Skaneeri igapäevaseid tooteid ja ravimeid.', 'Rahulikud, tõenduspõhised vastused. Liitu ootenimekirjaga.']),
+}
+
+
+def share_picture(path: pathlib.Path, headline_lines: list[str], text_lines: list[str]):
     s = SCALE
     image = Image.new('RGB', (1200 * s, 630 * s), MIST)
     draw = ImageDraw.Draw(image)
@@ -159,10 +171,10 @@ def share_picture(path: pathlib.Path):
     draw.text((140 * s, 104 * s), 'Hooli', font=heading_font(46), fill=INK, anchor='ls')
 
     headline = heading_font(72)
-    for i, line in enumerate(['Care for your', 'hormones, one', 'scan at a time.']):
+    for i, line in enumerate(headline_lines):
         draw.text((72 * s, (264 + i * 80) * s), line, font=headline, fill=INK, anchor='ls')
-    draw.text((72 * s, 520 * s), 'Scan everyday products and medicines.', font=text_font(28), fill=INK_2, anchor='ls')
-    draw.text((72 * s, 560 * s), 'Calm, evidence-based answers. Join the waitlist.', font=text_font(28), fill=INK_2, anchor='ls')
+    for i, line in enumerate(text_lines):
+        draw.text((72 * s, (520 + i * 40) * s), line, font=text_font(28), fill=INK_2, anchor='ls')
 
     path.parent.mkdir(parents=True, exist_ok=True)
     image.resize((1200, 630), Image.LANCZOS).save(path, quality=88, optimize=True, progressive=True)
@@ -181,7 +193,8 @@ def main():
     for size in (192, 512):
         icon(size).save(PUBLIC / f'images/icon-{size}.png')
 
-    share_picture(PUBLIC / 'images/og.jpg')
+    for locale, (headline_lines, text_lines) in SHARE_WORDS.items():
+        share_picture(PUBLIC / ('images/og.jpg' if locale == 'en' else f'images/og-{locale}.jpg'), headline_lines, text_lines)
 
     LOGO.mkdir(parents=True, exist_ok=True)
     (LOGO / 'hooli-icon.svg').write_text(svg_icon(h))

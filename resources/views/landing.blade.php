@@ -2,11 +2,13 @@
     $title = __('Hooli: care for your hormones, one scan at a time');
     $description = __('Hooli is a mobile app that scans everyday products and medicines for what may affect your hormones, and answers your daily questions with calm, evidence-based advice. Join the waitlist.');
     $contact = config('hooli.contact');
+    $guides = \App\Guide::all(app()->getLocale())->keyBy('key');
 
+    // [title, text, the guide that goes further]
     $problems = [
-        [__('Labels are hard to read'), __('Some everyday products contain ingredients that may disrupt hormones, called endocrine disruptors. They hide behind names few of us recognise.')],
-        [__('Some medicines carry hormonal risks'), __('Certain progestins, for example, are linked to meningioma, a usually benign tumour of the membranes around the brain. It’s worth knowing, and worth asking your doctor about.')],
-        [__('Advice online is loud'), __('If you live with a thyroid or hormonal condition, you’ve probably read more alarm than answers.')],
+        [__('Labels are hard to read'), __('Some everyday products contain ingredients that may disrupt hormones, called endocrine disruptors. They hide behind names few of us recognise.'), $guides['endocrine-disruptors']],
+        [__('Some medicines carry hormonal risks'), __('Certain progestins, for example, are linked to meningioma, a usually benign tumour of the membranes around the brain. It’s worth knowing, and worth asking your doctor about.'), $guides['progestins-meningioma']],
+        [__('Advice online is loud'), __('If you live with a thyroid or hormonal condition, you’ve probably read more alarm than answers.'), null],
     ];
 
     // [title, text, a small piece of the app that shows it]
@@ -44,6 +46,7 @@
 
     $faq = [
         ['q' => __('Is Hooli medical advice?'), 'a' => __('No. Hooli gives you information, so you can make everyday choices and bring better questions to your doctor. It doesn’t diagnose anything, and it doesn’t replace diagnosis or treatment by a health professional. Always talk to your doctor before changing a medication.')],
+        ['q' => __('What are endocrine disruptors?'), 'a' => __('Substances that can interfere with how hormones work. Some are found in everyday products: certain preservatives and UV filters in cosmetics, bisphenols in some plastics, PFAS in non-stick and waterproof coatings. EU rules ban or limit many of them, and you can lower your exposure further with a few simple habits.'), 'guide' => $guides['endocrine-disruptors']],
         ['q' => __('Is my data private?'), 'a' => __('Yes. Your health profile is used for one thing: adapting Hooli’s advice to you. It is never sold or used for advertising, and you can delete it whenever you like. Hooli follows the GDPR, the European data protection law that gives health data its strongest protection. This website sets no cookies and uses no trackers.')],
         ['q' => __('Where does Hooli’s information come from?'), 'a' => __('From health agencies and scientific assessments, such as those of the European Food Safety Authority, the European Chemicals Agency and the European Medicines Agency. Every answer shows its sources, so you can check them or take them to your doctor.')],
         ['q' => __('Which countries will Hooli be available in?'), 'a' => __('Hooli starts in Europe, in English, with French and Estonian to follow. Safer swaps show products sold in your country. Join the waitlist and we’ll tell you when Hooli opens where you live.')],
@@ -58,64 +61,19 @@
         ], $faq)],
     ];
 @endphp
-<!DOCTYPE html>
-<html lang="{{ app()->getLocale() }}">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="theme-color" content="#E3EADD">
-    {{-- Lets the hero's phone wait, as a camera, until it's in view (app.css, .phone). --}}
-    <script>document.documentElement.classList.add('js')</script>
-    <title>{{ $title }}</title>
-    <meta name="description" content="{{ $description }}">
-    <link rel="canonical" href="{{ url('/') }}">
-    <meta property="og:type" content="website">
-    <meta property="og:site_name" content="Hooli">
-    <meta property="og:title" content="{{ $title }}">
-    <meta property="og:description" content="{{ $description }}">
-    <meta property="og:url" content="{{ url('/') }}">
-    <meta property="og:image" content="{{ asset('images/og.jpg') }}">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
-    <meta property="og:image:alt" content="{{ __('Hooli. Care for your hormones, one scan at a time.') }}">
-    <meta name="twitter:card" content="summary_large_image">
-    @foreach ($jsonLd as $data)
-        <script type="application/ld+json">{!! json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) !!}</script>
-    @endforeach
+@extends('layouts.site')
 
-    <link rel="icon" href="/favicon.ico" sizes="48x48">
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-    <link rel="manifest" href="/site.webmanifest">
-
-    @fonts
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-</head>
-<body class="min-h-screen">
-<a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-full focus:bg-sage-deep focus:px-4 focus:py-2 focus:font-semibold focus:text-cream">{{ __('Skip to content') }}</a>
-
-<header class="gutter bg-mist">
-    <div class="wrap flex items-center justify-between gap-4 py-4 sm:py-5">
-        <a href="/" class="flex items-center gap-2.5" aria-label="{{ __('Hooli, home') }}">
-            @include('partials.icon-tile', ['class' => 'size-7 sm:size-8'])
-            <span class="font-display text-[28px] leading-none text-ink sm:text-[32px]">Hooli</span>
-        </a>
-        <a href="#waitlist" class="btn px-4 py-2.5 text-[15px]">
-            <span class="sm:hidden">{{ __('Join') }}</span><span class="hidden sm:inline">{{ __('Join the waitlist') }}</span>
-        </a>
-    </div>
-</header>
-
-<main id="main">
+@section('content')
     {{-- Hero: the promise, and the thing itself, a label read for you. --}}
     <section class="gutter overflow-hidden bg-mist" aria-labelledby="hero-title">
         <div class="wrap grid items-center gap-12 pt-8 sm:pt-12 lg:grid-cols-[1.08fr_.92fr] lg:gap-10 lg:pt-10 lg:pb-24">
             <div class="grid justify-items-start gap-7">
                 <h1 id="hero-title" class="text-[clamp(44px,6.6vw,84px)] leading-[1.02]">{{ __('Care for your hormones, one scan at a time.') }}</h1>
                 <p class="max-w-[34em] text-[clamp(18px,1.7vw,21px)] text-ink-2">{{ __('Hooli reads the labels on your cosmetics, food, household products and medicines, and tells you in plain words what matters for your hormones. Calm, evidence-based, and adapted to you.') }}</p>
-                <div class="flex flex-wrap items-center gap-x-5 gap-y-3">
-                    <a href="#waitlist" class="btn text-[17px]">{{ __('Join the waitlist') }}</a>
-                    <p class="text-[15px] text-ink-2">{{ __('A mobile app, in development.') }}<br>{{ __('One email the day it opens.') }}</p>
+                {{-- The waitlist, where the promise is: an email is all it takes. The band lower down also asks the situation. --}}
+                <div class="grid w-full max-w-[34rem] gap-3">
+                    @include('partials.waitlist-form', ['short' => true, 'id' => 'hero'])
+                    <p class="text-[15px] text-ink-2">{{ __('A mobile app, in development.') }} {{ __('One email the day it opens.') }}</p>
                 </div>
             </div>
 
@@ -130,10 +88,15 @@
         <div class="wrap grid gap-10 lg:grid-cols-[1fr_1.35fr] lg:gap-20">
             <h2 id="problem-title" class="max-w-[13em] text-[clamp(34px,4.2vw,52px)]">{{ __('The answers exist. They’re just hard to find.') }}</h2>
             <ul class="grid border-t border-line">
-                @foreach ($problems as [$heading, $text])
+                @foreach ($problems as [$heading, $text, $guide])
                     <li class="grid gap-1.5 border-b border-line py-6 sm:grid-cols-[14em_1fr] sm:gap-8">
                         <h3 class="text-[24px] leading-tight">{{ $heading }}</h3>
-                        <p class="text-ink-2">{{ $text }}</p>
+                        <div class="grid gap-2">
+                            <p class="text-ink-2">{{ $text }}</p>
+                            @if ($guide)
+                                <p class="text-[16px]"><a class="link font-semibold" href="{{ $guide->url() }}">{{ __('Read the guide: :title', ['title' => $guide->short]) }}</a></p>
+                            @endif
+                        </div>
                     </li>
                 @endforeach
             </ul>
@@ -231,6 +194,18 @@
         </div>
     </section>
 
+    {{-- The guides: for the questions that need more than a few lines. --}}
+    <section class="gutter pb-20 sm:pb-28" aria-labelledby="guides-title">
+        <div class="wrap grid gap-10 lg:grid-cols-[1fr_1.35fr] lg:gap-20">
+            <div class="grid content-start justify-items-start gap-5">
+                <h2 id="guides-title" class="max-w-[12em] text-[clamp(34px,4.2vw,52px)]">{{ __('Guides for the bigger questions') }}</h2>
+                <p class="max-w-[30em] text-[19px] text-ink-2">{{ __('Longer reads on what we’re asked most, in plain words, with every source listed.') }}</p>
+                <a class="link font-semibold" href="{{ localized_route('guides') }}">{{ __('All guides') }}</a>
+            </div>
+            @include('guides.list', ['guides' => $guides])
+        </div>
+    </section>
+
     {{-- Why Hooli exists. --}}
     <section class="gutter bg-blush-pale py-20 sm:py-28" aria-labelledby="story-title">
         <div class="mx-auto grid max-w-[36em] gap-6">
@@ -245,17 +220,7 @@
         </div>
     </section>
 
-    {{-- The one thing we ask. --}}
-    <section id="waitlist" class="on-pine gutter bg-pine py-20 text-on-pine sm:py-28" aria-labelledby="waitlist-title">
-        <div class="wrap grid gap-12 lg:grid-cols-[1fr_1fr] lg:gap-20">
-            <div class="grid content-start gap-5">
-                <h2 id="waitlist-title" class="max-w-[12em] text-[clamp(34px,4.4vw,56px)]">{{ __('Be among the first to use Hooli') }}</h2>
-                <p class="max-w-[30em] text-[19px] text-on-pine-2">{{ __('Leave your email and we’ll write once, the day Hooli opens. Tell us your situation too, if you like: it helps us decide what to build first.') }}</p>
-                <p class="max-w-[30em] text-[16px] text-on-pine-2">{{ __('No spam. To be removed, write to') }} <a class="link" href="mailto:{{ $contact }}">{{ $contact }}</a>.</p>
-            </div>
-            @include('partials.waitlist-form')
-        </div>
-    </section>
+    @include('partials.waitlist-band')
 
     {{-- Questions people ask before joining. The same answers feed the FAQ structured data. --}}
     <section id="faq" class="gutter py-20 sm:py-28" aria-labelledby="faq-title">
@@ -268,30 +233,15 @@
                             {{ $item['q'] }}
                             <svg viewBox="0 0 16 16" class="mt-1.5 size-4 shrink-0 text-sage-deep transition group-open:rotate-45" aria-hidden="true"><path d="M8 2v12M2 8h12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
                         </summary>
-                        <p class="max-w-[38em] pb-6 text-ink-2">{{ $item['a'] }}</p>
+                        <div class="grid max-w-[38em] gap-3 pb-6 text-ink-2">
+                            <p>{{ $item['a'] }}</p>
+                            @isset($item['guide'])
+                                <p class="text-[16px]"><a class="link font-semibold" href="{{ $item['guide']->url() }}">{{ __('Read the guide: :title', ['title' => $item['guide']->short]) }}</a></p>
+                            @endisset
+                        </div>
                     </details>
                 @endforeach
             </div>
         </div>
     </section>
-</main>
-
-<footer class="on-pine gutter bg-pine pt-16 pb-10 text-on-pine">
-    <div class="wrap grid gap-10 md:grid-cols-[1fr_1.4fr] md:gap-16">
-        <div class="grid content-start gap-4">
-            <a href="/" class="flex w-fit items-center gap-2.5 text-on-pine" aria-label="{{ __('Hooli, home') }}">
-                @include('partials.icon-tile', ['class' => 'size-7'])
-                <span class="font-display text-[28px] leading-none">Hooli</span>
-            </a>
-            <p class="max-w-[24em] text-on-pine-2">{{ __('Care for your hormones, one scan at a time. A mobile app, in development.') }}</p>
-            <p><a class="link" href="mailto:{{ $contact }}">{{ $contact }}</a></p>
-        </div>
-        <p class="max-w-[38em] rounded-[20px] p-5 text-[16px] text-on-pine-2 shadow-[inset_0_0_0_1.5px_var(--color-line-pine)]">
-            <span class="font-semibold text-on-pine">{{ __('Hooli provides information, not medical advice.') }}</span>
-            {{ __('It does not replace diagnosis or treatment by a health professional. Always talk to your doctor before changing a medication.') }}
-        </p>
-    </div>
-    <p class="wrap mt-12 border-t border-line-pine pt-6 text-[15px] text-on-pine-2">© {{ date('Y') }} Hooli. {{ __('No cookies, no trackers on this site.') }}</p>
-</footer>
-</body>
-</html>
+@endsection

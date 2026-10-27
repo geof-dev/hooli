@@ -36,7 +36,7 @@ class WaitlistController extends Controller
                 return response()->json(['ok' => false, 'message' => $message], 422);
             }
 
-            return redirect()->to(route('home').'?waitlist=invalid#waitlist');
+            return redirect()->to(localized_route('home').'?waitlist=invalid#waitlist');
         }
 
         $email = mb_strtolower(trim($request->input('email')));
@@ -57,6 +57,6 @@ class WaitlistController extends Controller
     {
         return $request->expectsJson()
             ? response()->json(['ok' => true])
-            : redirect()->to(route('home').'?waitlist=joined#waitlist');
+            : redirect()->to(localized_route('home').'?waitlist=joined#waitlist');
     }
 }
