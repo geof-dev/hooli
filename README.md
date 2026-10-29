@@ -68,6 +68,31 @@ Add `?utm_source=instagram&utm_campaign=...` to links you share: the campaign is
 
 The situation people may give is health data under the GDPR. It is optional, and the form says what it's for.
 
+## The app's API
+
+The iPhone app's backend, under `/api/v1` (`routes/api.php`). It knows products, never people: the health profile and
+the scoring stay on the phone, and the app sends no health data. Every answer is JSON, there is no cookie or account,
+and each address is rate-limited: 120 lookups a minute, 20 label reads an hour.
+
+- `GET /api/v1/products/{barcode}`: a product by its barcode (8 to 14 digits). One we don't have is looked up in Open
+  Beauty Facts, then Open Food Facts, then Open Products Facts, and kept when they list its ingredients. 404
+  `not_found` when nobody knows it.
+- `POST /api/v1/labels`: a photo of the label (`image`: JPEG, PNG or HEIC, up to 8 MB), with the `barcode` if there is
+  one. Claude reads the name and the ingredients, and a medicine's active substances. With a barcode, the read adds
+  the product, confirms the one we have, or replaces a shorter list from Open Facts. 422 `unreadable` when the photo
+  shows nothing to read.
+- `GET /api/v1/products?category=face-care&exclude={barcode}`: better swaps, up to 40 products of the category, the
+  most confirmed first. The phone scores them.
+- `GET /api/v1/updates`: changes to EU rules the app checks the user's products against, in English, Estonian and
+  Russian. They are listed in `config/hooli.php` (`updates`), with the kinds and categories a product can have.
+
+A product comes back as `barcode`, `name`, `brand`, `kind`, `category`, `ingredients` (in label order), `image_url`,
+`source` (`hooli` for a label read, or the Open Facts database) and `confirmations`, with `updated_at`.
+
+Label reading needs a Claude API key in `ANTHROPIC_API_KEY`, and PHP's Imagick extension, with HEIC support for iPhone
+photos. Photos are never kept: each is read in memory, sent to Claude without its metadata, and dropped with the
+request. The model is set in `app/LabelReader.php`.
+
 ## Deploying
 
 The site's address is https://gethooli.app: set `APP_URL` to it in production (`.env.example` does), so canonical
