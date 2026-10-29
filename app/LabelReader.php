@@ -10,9 +10,9 @@ use Illuminate\Support\Str;
 use Imagick;
 
 /**
- * Reads the photo of a label with Claude: what the product is, its ingredients in the order of the label, and for a
- * medicine its active substances. The photo is held in memory for the read and dropped with the request: it is
- * never saved, and it leaves without its metadata, such as where it was taken.
+ * Reads the photo of a product with Claude, whichever side it shows: what the product is, its ingredients in the order
+ * of the label, and for a medicine its active substances. The photo is held in memory for the read and dropped with
+ * the request: it is never saved, and it leaves without its metadata, such as where it was taken.
  */
 final class LabelReader
 {
@@ -27,6 +27,9 @@ final class LabelReader
 
         The photos are taken in Estonia: a label may be in Estonian, Russian, Latvian, Finnish or English, and cosmetics list their ingredients by their Latin INCI names. When the ingredients are printed in several languages, read the most complete list.
 
+        A photo may show any side of the product.
+
+        - view: what the photo shows. ingredients when you can read its ingredient list; medicine for a medicine box or leaflet whose active substances you can read; front when you can read neither, but can tell which product it is by the brand and name printed on it; unreadable when you can't tell even that.
         - name: the product's name as printed, without the brand. If you can't read one, a short description in English, such as "Face cream".
         - brand: as printed, or null.
         - kind and category: what the product is. A medicine is of kind and category medicine.
@@ -37,8 +40,9 @@ final class LabelReader
         TEXT;
 
     /**
-     * The read: name, brand, kind, category, ingredients, and medicine (active_substances, strength, form) or null.
-     * Null itself when the photo shows no ingredients and no medicine.
+     * The read: view (ingredients, medicine or front), name, brand, kind, category, ingredients, and medicine
+     * (active_substances, strength, form) or null. Null itself when the photo shows nothing to read and no product to
+     * recognise.
      */
     public static function read(UploadedFile $photo): ?array
     {
@@ -73,16 +77,26 @@ final class LabelReader
             $read['medicine'] = $read['medicine']['active_substances'] ? $read['medicine'] : null;
         }
 
-        return $read['ingredients'] || $read['medicine'] ? $read : null;
+        // The view goes by what Claude did read, whatever it called the photo: active substances make a medicine, an
+        // ingredient list a label. A front is taken at its word; anything else is unreadable.
+        $read['view'] = match (true) {
+            $read['medicine'] !== null => 'medicine',
+            $read['ingredients'] !== [] => 'ingredients',
+            $read['view'] === 'front' => 'front',
+            default => 'unreadable',
+        };
+
+        return $read['view'] !== 'unreadable' ? $read : null;
     }
 
-    private static function claude(): Client
+    /** Claude, for the reads here and the searches of WebIngredients, which take longer. */
+    public static function claude(int $timeout = 45): Client
     {
         return new Client(
             apiKey: (string) config('services.anthropic.key'),
             requestOptions: [
                 // Through Laravel's HTTP stack, so that Http::fake() stands in for Claude in the tests.
-                'transporter' => new Guzzle(['handler' => Http::buildHandlerStack(), 'connect_timeout' => 5, 'timeout' => 45]),
+                'transporter' => new Guzzle(['handler' => Http::buildHandlerStack(), 'connect_timeout' => 5, 'timeout' => $timeout]),
                 'maxRetries' => 1,
             ],
         );
@@ -113,6 +127,7 @@ final class LabelReader
         return [
             'type' => 'object',
             'properties' => [
+                'view' => ['type' => 'string', 'enum' => ['ingredients', 'medicine', 'front', 'unreadable']],
                 'name' => $text,
                 'brand' => $textOrNull,
                 'kind' => ['type' => 'string', 'enum' => config('hooli.kinds')],
@@ -132,7 +147,7 @@ final class LabelReader
                     ['type' => 'null'],
                 ]],
             ],
-            'required' => ['name', 'brand', 'kind', 'category', 'ingredients', 'medicine'],
+            'required' => ['view', 'name', 'brand', 'kind', 'category', 'ingredients', 'medicine'],
             'additionalProperties' => false,
         ];
     }

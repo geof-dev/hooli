@@ -1,7 +1,12 @@
 <?php
 
 use App\Models\Subscriber;
+use App\OpenFacts;
+use App\ProductImport;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schedule;
 
 // How the waitlist is doing, and which situations to build for first.
 Artisan::command('waitlist:stats', function () {
@@ -50,3 +55,46 @@ Artisan::command('waitlist:forget {email}', function (string $email) {
     $deleted = Subscriber::where('email', mb_strtolower(trim($email)))->delete();
     $deleted ? $this->info("Deleted $email") : $this->warn("$email is not on the list");
 })->purpose('Delete one person from the waitlist, at their request');
+
+// Every product the open databases say is sold in our countries, with its name and ingredient list, from the exports
+// they make each night: most scans then find their product here, without asking anyone. A list read on a label stays.
+Artisan::command('products:import
+    {--country=* : A country, by its ISO code (ee); those of config/hooli.php if none}
+    {--source=* : food, beauty or products; all three if none}
+    {--file= : An export already on this machine, of the one --source, instead of downloading it}', function () {
+    $countries = array_map(fn (string $country) => strtolower(trim($country)), $this->option('country') ?: config('hooli.countries'));
+    $databases = $this->option('source') ?: array_keys(ProductImport::DATABASES);
+    $file = $this->option('file');
+    if ($unknown = array_diff($countries, OpenFacts::COUNTRIES)) {
+        $this->error('Unknown country: '.implode(', ', $unknown));
+
+        return 1;
+    }
+    if (array_diff($databases, array_keys(ProductImport::DATABASES)) || ($file && count($databases) !== 1)) {
+        $this->error('The sources are food, beauty and products, and a --file is of one of them');
+
+        return 1;
+    }
+
+    foreach ($databases as $database) {
+        $path = $file ?? ProductImport::path($database);
+        try {
+            if (! $file) {
+                ProductImport::download($database);
+            }
+            $counts = ProductImport::import($database, $path, $countries);
+        } finally {
+            if (! $file) {
+                File::delete($path);
+            }
+        }
+
+        Log::info("products:import $database", ['countries' => $countries, ...$counts]);
+        $this->info(sprintf(
+            '%s: %d sold in %s with their ingredients, %d added, %d updated, %d unchanged',
+            $database, $counts['sold'], implode(', ', $countries), $counts['added'], $counts['updated'], $counts['unchanged'],
+        ));
+    }
+})->purpose('Import the products sold in our countries from the open databases');
+
+Schedule::command('products:import')->weekly();

@@ -13,5 +13,6 @@ Route::prefix('v1')->name('api.')->group(function () {
         Route::get('updates', fn () => ['updates' => config('hooli.updates')])->name('updates');
     });
 
+    Route::post('products', [ProductController::class, 'store'])->middleware('throttle:contributions')->name('contributions');
     Route::post('labels', LabelController::class)->middleware('throttle:labels')->name('labels');
 });

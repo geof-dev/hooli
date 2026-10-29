@@ -29,6 +29,14 @@ return [
         'other' => 'Something else',
     ],
 
+    // Whether the app's API may ask Claude: to read the photo of a label, and to look a front up on the web. Off, the
+    // photos are refused, and the app reads labels on the phone and sends us their text.
+    'ai' => env('HOOLI_AI', false),
+
+    // The markets Hooli imports products for, by their ISO 3166-1 codes in lower case: every week, the products the
+    // open databases say are sold there.
+    'countries' => explode(',', env('HOOLI_COUNTRIES', 'ee')),
+
     // What a product is, for the app's API: its kind, and its category, within which the app offers better swaps.
     'kinds' => ['cosmetic', 'food', 'household', 'medicine', 'other'],
     'categories' => [
