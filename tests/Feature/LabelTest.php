@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Http;
 
 beforeEach(function () {
     Http::preventStrayRequests();
-    config(['hooli.ai' => true, 'services.anthropic.key' => 'test-key']);
+    config(['hooli.ai' => true, 'services.anthropic.key' => 'test-key', 'hooli.models.label' => 'claude-haiku-5-5', 'hooli.models.retry' => 'claude-sonnet-5-5']);
 });
 
 // A message from Claude, with these content blocks. A fresh response each time: the SDK reads the body once.
@@ -17,69 +17,52 @@ function claudeAnswers(array $content, string $stopReason = 'end_turn')
         'id' => 'msg_01',
         'type' => 'message',
         'role' => 'assistant',
-        'model' => 'claude-opus-5-5',
+        'model' => 'claude-haiku-5-5',
         'content' => $content,
         'stop_reason' => $stopReason,
         'stop_sequence' => null,
-        'usage' => ['input_tokens' => 4900, 'output_tokens' => 120],
+        'usage' => ['input_tokens' => 7600, 'output_tokens' => 900],
     ]);
 }
 
-// Claude answers with this read of the photo, the label of a night cream unless the read says otherwise. Its searches
-// on the web are answered by claudeFinds().
-function claudeReads(array $read = []): void
+// One ingredient as Claude reads it: no concern unless the fields say otherwise.
+function ingredient(string $name, string $role, array $fields = []): array
 {
-    Http::fake(['api.anthropic.com/*' => fn (Request $request) => isset($request['tools']) ? null : claudeAnswers([['type' => 'text', 'text' => json_encode($read + [
+    return $fields + ['name' => $name, 'role' => $role, 'level' => 'fine', 'hormones' => [], 'why' => '', 'matters_for' => [], 'level_for' => 'fine'];
+}
+
+// The label of a night cream, as Claude reads it, unless the read says otherwise.
+function nightCream(array $read = []): array
+{
+    return $read + [
         'view' => 'ingredients',
         'name' => 'Night cream with retinol',
         'brand' => 'Saar & Sammal',
         'kind' => 'cosmetic',
         'category' => 'face-care',
-        'ingredients' => ['Aqua', 'Glycerin', 'Retinyl Palmitate'],
+        'ingredients' => [
+            ingredient('Aqua', 'Water'),
+            ingredient('Glycerin', 'Moisturiser'),
+            ingredient('Retinyl Palmitate', 'Vitamin A', ['level' => 'know', 'why' => 'High doses of vitamin A are a concern in pregnancy.', 'matters_for' => ['pregnancy'], 'level_for' => 'swap']),
+        ],
+        'summary' => 'Mostly gentle, with vitamin A to know about if you are pregnant.',
         'medicine' => null,
-    ])]])]);
-}
-
-// Claude searches the web once, and records what it found there with record_ingredients. When the search pauses
-// first, the turn is answered only once it is sent back.
-function claudeFinds(array $found, bool $pauses = false): void
-{
-    claudeSearches([['type' => 'tool_use', 'id' => 'toolu_01', 'name' => 'record_ingredients', 'input' => $found]], 'tool_use', $pauses);
-}
-
-// Claude searches the web once, and ends its turn with these blocks.
-function claudeSearches(array $answer, string $stopReason, bool $pauses = false): void
-{
-    $search = [
-        ['type' => 'server_tool_use', 'id' => 'srvtoolu_01', 'name' => 'web_search', 'input' => ['query' => 'Saar & Sammal night cream with retinol ingredients']],
-        ['type' => 'web_search_tool_result', 'tool_use_id' => 'srvtoolu_01', 'content' => [
-            ['type' => 'web_search_result', 'url' => 'https://saarsammal.ee/en/night-cream', 'title' => 'Night cream with retinol', 'encrypted_content' => 'EqgfCioIARgB', 'page_age' => null],
-        ]],
     ];
-    Http::fake(['api.anthropic.com/*' => fn (Request $request) => match (true) {
-        ! isset($request['tools']) => null,
-        $pauses && count($request['messages']) === 1 => claudeAnswers([$search[0]], 'pause_turn'),
-        default => claudeAnswers([...$search, ...$answer], $stopReason),
-    }]);
 }
 
-// The open databases' search answers with the products given for each; the others find nothing.
-function openFactsFind(array $products = []): void
+// Claude answers each model with its read: by default, the first model reads the night cream.
+function claudeReads(?array $first = null, ?array $retry = null, string $stopReason = 'end_turn'): void
 {
-    Http::fake(collect(['openbeautyfacts', 'openfoodfacts', 'openproductsfacts'])->mapWithKeys(fn (string $database) => [
-        "world.$database.org/cgi/search.pl*" => Http::response(['count' => count($products[$database] ?? []), 'page' => 1, 'products' => $products[$database] ?? []]),
-    ])->all());
+    $reads = ['claude-haiku-5-5' => $first ?? nightCream(), 'claude-sonnet-5-5' => $retry];
+    Http::fake(['api.anthropic.com/*' => fn (Request $request) => isset($reads[$request['model']])
+        ? claudeAnswers([['type' => 'text', 'text' => json_encode($reads[$request['model']])]], $request['model'] === 'claude-haiku-5-5' ? $stopReason : 'end_turn')
+        : null]);
 }
 
-// The requests sent to Claude's web search, and to the open databases' search.
-function webSearches(): array
+// The models Claude was asked, in turn.
+function modelsAsked(): array
 {
-    return Http::recorded(fn (Request $request) => isset($request['tools']))->map(fn (array $pair) => $pair[0])->values()->all();
-}
-
-function openFactsSearches(): array
-{
-    return Http::recorded(fn (Request $request) => str_contains($request->url(), '/cgi/search.pl'))->map(fn (array $pair) => $pair[0])->values()->all();
+    return Http::recorded()->map(fn (array $pair) => $pair[0]['model'])->values()->all();
 }
 
 // A phone's photo of the label, with the barcode the app scanned.
@@ -91,10 +74,10 @@ function sendLabel(array $fields = [])
     ]);
 }
 
-it('reads a label with Claude, and adds the product it shows', function () {
+it('reads a label with the low-cost model, in the app’s language, and adds the product it shows', function () {
     claudeReads();
 
-    sendLabel()->assertOk()->assertHeaderMissing('Set-Cookie')->assertJson([
+    sendLabel(['locale' => 'et'])->assertOk()->assertHeaderMissing('Set-Cookie')->assertJson([
         'product' => [
             'barcode' => '4740000123456',
             'name' => 'Night cream with retinol',
@@ -108,30 +91,60 @@ it('reads a label with Claude, and adds the product it shows', function () {
             'confirmations' => 1,
         ],
         'medicine' => null,
+        'analysis' => [
+            'locale' => 'et',
+            'estimated' => false,
+            'summary' => 'Mostly gentle, with vitamin A to know about if you are pregnant.',
+            'ingredients' => nightCream()['ingredients'],
+        ],
         'found_by' => 'label',
     ]);
     expect(Product::sole())
         ->source->toBe('hooli')
         ->ingredients->toBe(['Aqua', 'Glycerin', 'Retinyl Palmitate']);
 
-    // The photo goes as a JPEG no bigger than Claude reads, asking for the read as JSON.
+    // The photo goes as a JPEG no bigger than Claude reads, asking for the read as JSON, in Estonian.
     [$request] = Http::recorded()->sole();
-    $image = $request['messages'][0]['content'][0];
+    [$image, $text] = $request['messages'][0]['content'];
     $photo = new Imagick;
     $photo->readImageBlob(base64_decode($image['source']['data']));
+    $schema = $request['output_config']['format']['schema'];
     expect($request->url())->toBe('https://api.anthropic.com/v1/messages')
         ->and($request->header('Authorization'))->toBe(['Bearer test-key'])
-        ->and($request->header('anthropic-beta'))->toBe(['server-side-fallback-2026-07-01'])
-        ->and($request['fallbacks'])->toBe('default')
-        ->and($request['model'])->toBe('claude-opus-5-5')
+        ->and($request['model'])->toBe('claude-haiku-5-5')
         ->and($request['output_config']['effort'])->toBe('low')
-        ->and($request['output_config']['format']['schema']['required'])->toBe(['view', 'name', 'brand', 'kind', 'category', 'ingredients', 'medicine'])
-        ->and($request['output_config']['format']['schema']['properties']['view']['enum'])->toBe(['ingredients', 'medicine', 'front', 'unreadable'])
+        ->and($request['fallbacks'] ?? null)->toBeNull()
         ->and($request['tools'] ?? null)->toBeNull()
-        ->and($request['output_config']['format']['schema']['additionalProperties'])->toBeFalse()
-        ->and($request['output_config']['format']['schema']['properties']['medicine']['anyOf'][0]['required'])->toBe(['active_substances', 'strength', 'form'])
+        ->and($request['system'])->not->toContain('Estonia')
+        ->and($text)->toBe(['type' => 'text', 'text' => 'Read this product. Write in Estonian.'])
+        ->and($schema['required'])->toBe(['view', 'name', 'brand', 'kind', 'category', 'ingredients', 'summary', 'medicine'])
+        ->and($schema['additionalProperties'])->toBeFalse()
+        ->and($schema['properties']['view']['enum'])->toBe(['ingredients', 'medicine', 'front', 'unreadable'])
+        ->and($schema['properties']['category']['enum'])->toContain('kitchenware')
+        ->and($schema['properties']['ingredients']['items']['required'])->toBe(['name', 'role', 'level', 'hormones', 'why', 'matters_for', 'level_for'])
+        ->and($schema['properties']['ingredients']['items']['properties']['hormones']['items']['properties']['hormone']['enum'])
+        ->toBe(['oestrogen', 'progesterone', 'testosterone', 'thyroid', 'cortisol', 'insulin'])
+        ->and($schema['properties']['medicine']['anyOf'][0]['required'])->toBe(['active_substances', 'strength', 'form', 'family', 'questions'])
         ->and($image['source']['media_type'])->toBe('image/jpeg')
         ->and([$photo->getImageFormat(), $photo->getImageWidth(), $photo->getImageHeight()])->toBe(['JPEG', 2576, 1932]);
+});
+
+it('writes in English when the app names no language, and refuses one it doesn’t speak', function () {
+    claudeReads();
+
+    sendLabel()->assertOk()->assertJsonPath('analysis.locale', 'en');
+    expect(Http::recorded()->sole()[0]['messages'][0]['content'][1]['text'])->toBe('Read this product. Write in English.');
+
+    sendLabel(['locale' => 'fr'])->assertStatus(422)->assertExactJson(['message' => 'invalid_locale']);
+    Http::assertSentCount(1);
+});
+
+it('reads with the models the settings name', function () {
+    config(['hooli.models.label' => 'claude-sonnet-5-5', 'hooli.models.retry' => 'claude-opus-5-5']);
+    Http::fake(['api.anthropic.com/*' => fn () => claudeAnswers([['type' => 'text', 'text' => json_encode(nightCream())]])]);
+
+    sendLabel()->assertOk();
+    expect(modelsAsked())->toBe(['claude-sonnet-5-5']);
 });
 
 it('reads no photo while the AI is switched off', function () {
@@ -178,33 +191,43 @@ it('keeps a list it disagrees with when that list came from an earlier read, or 
     expect(Product::pluck('confirmations')->all())->toBe([1, 1, 1]);
 });
 
-// A box of the pill, with its excipients and active substances.
-function claudeReadsMedicine(): void
+// A box of ibuprofen, with its active substance first and the excipients it shows.
+function ibuprofenBox(): array
 {
-    claudeReads([
+    return [
         'view' => 'medicine',
-        'name' => 'Microgynon',
-        'brand' => 'Bayer',
+        'name' => 'Ibumax 400 mg',
+        'brand' => 'Vitabalans',
         'kind' => 'medicine',
         'category' => 'medicine',
-        'ingredients' => ['Lactose Monohydrate', 'Maize Starch'],
-        'medicine' => ['active_substances' => ['Levonorgestrel', 'Ethinylestradiol'], 'strength' => '0.15 mg/0.03 mg', 'form' => 'coated tablets'],
-    ]);
+        'ingredients' => [
+            ingredient('Ibuprofen', 'Painkiller', ['level' => 'know', 'hormones' => [['hormone' => 'progesterone', 'evidence' => 'human']], 'why' => 'Taken around ovulation, it can delay it.', 'matters_for' => ['pregnancy'], 'level_for' => 'know']),
+            ingredient('Microcrystalline Cellulose', 'Filler'),
+        ],
+        'summary' => 'A common painkiller: fine now and then, worth knowing about when trying for a baby.',
+        'medicine' => [
+            'active_substances' => ['Ibuprofen', ' '],
+            'strength' => '400 mg',
+            'form' => 'film-coated tablets',
+            'family' => 'Anti-inflammatory painkiller (NSAID)',
+            'questions' => ['How many days in a row can I take it?', 'Is it safe while trying to get pregnant?'],
+        ],
+    ];
 }
 
 it('reads a medicine box, and keeps nothing without a barcode', function () {
-    claudeReadsMedicine();
+    claudeReads(ibuprofenBox());
 
     sendLabel(['barcode' => null])->assertOk()->assertExactJson([
         'product' => [
             'barcode' => null,
-            'name' => 'Microgynon',
-            'brand' => 'Bayer',
+            'name' => 'Ibumax 400 mg',
+            'brand' => 'Vitabalans',
             'kind' => 'medicine',
             'category' => 'medicine',
             'types' => null,
             'countries' => null,
-            'ingredients' => ['Levonorgestrel', 'Ethinylestradiol'],
+            'ingredients' => ['Ibuprofen', 'Microcrystalline Cellulose'],
             'ingredient_ids' => null,
             'additives' => null,
             'nutrition' => null,
@@ -215,257 +238,96 @@ it('reads a medicine box, and keeps nothing without a barcode', function () {
             'confirmations' => 0,
             'updated_at' => null,
         ],
-        'medicine' => ['active_substances' => ['Levonorgestrel', 'Ethinylestradiol'], 'strength' => '0.15 mg/0.03 mg', 'form' => 'coated tablets'],
+        'medicine' => [
+            'active_substances' => ['Ibuprofen'],
+            'strength' => '400 mg',
+            'form' => 'film-coated tablets',
+            'family' => 'Anti-inflammatory painkiller (NSAID)',
+            'questions' => ['How many days in a row can I take it?', 'Is it safe while trying to get pregnant?'],
+        ],
+        'analysis' => [
+            'locale' => 'en',
+            'estimated' => false,
+            'summary' => 'A common painkiller: fine now and then, worth knowing about when trying for a baby.',
+            'ingredients' => ibuprofenBox()['ingredients'],
+        ],
         'found_by' => 'medicine',
     ]);
     expect(Product::count())->toBe(0);
 });
 
-it('keeps a medicine by its barcode and active substances, so the next scan needs no photo', function () {
-    claudeReadsMedicine();
+it('keeps a medicine by its barcode, as a medicine whatever Claude called it', function () {
+    claudeReads([...ibuprofenBox(), 'kind' => 'other', 'category' => 'other']);
 
     sendLabel()->assertOk()
         ->assertJsonPath('found_by', 'medicine')
-        ->assertJsonPath('product.barcode', '4740000123456')
-        ->assertJsonPath('product.ingredients', ['Levonorgestrel', 'Ethinylestradiol'])
-        ->assertJsonPath('medicine.strength', '0.15 mg/0.03 mg');
+        ->assertJsonPath('product.kind', 'medicine')
+        ->assertJsonPath('medicine.strength', '400 mg');
 
     $this->get('/api/v1/products/4740000123456')->assertOk()->assertJson(['product' => [
-        'name' => 'Microgynon',
-        'brand' => 'Bayer',
+        'name' => 'Ibumax 400 mg',
         'kind' => 'medicine',
         'category' => 'medicine',
-        'ingredients' => ['Levonorgestrel', 'Ethinylestradiol'],
+        'ingredients' => ['Ibuprofen', 'Microcrystalline Cellulose'],
         'source' => 'hooli',
         'confirmations' => 1,
     ]]);
     Http::assertSentCount(1);
 });
 
-it('says so when a photo shows nothing to read, and keeps nothing', function () {
-    claudeReads(['view' => 'unreadable', 'name' => 'Photo of a shelf', 'ingredients' => [], 'medicine' => null]);
-    sendLabel()->assertStatus(422)->assertExactJson(['message' => 'unreadable']);
-
-    // A label Claude couldn't make out is nothing to go on either.
-    claudeReads(['view' => 'ingredients', 'name' => 'Blurred label', 'ingredients' => [' '], 'medicine' => null]);
-    sendLabel()->assertStatus(422)->assertExactJson(['message' => 'unreadable']);
-
-    expect(Product::count())->toBe(0);
-    expect(webSearches())->toBeEmpty();
-});
-
-// The front of a night cream: Claude recognises it, and reads no ingredients.
-function claudeReadsFront(array $read = []): void
-{
-    claudeReads($read + ['view' => 'front', 'ingredients' => []]);
-}
-
-it('finds the list of a front in our products, by its name and brand whatever their case, the most confirmed first', function () {
-    storeProduct(['barcode' => '4740000000001', 'confirmations' => 2]);
-    storeProduct(['barcode' => '4740000000002', 'confirmations' => 5, 'ingredients' => ['Aqua', 'Glycerin', 'Retinol']]);
-    storeProduct(['barcode' => '4740000000003', 'confirmations' => 9, 'brand' => 'Another brand']);
-    storeProduct(['barcode' => '4740000000004', 'confirmations' => 9, 'name' => 'Day cream']);
-    claudeReadsFront(['name' => 'NIGHT CREAM WITH RETINOL', 'brand' => 'saar & sammal']);
-
-    sendLabel(['barcode' => null])->assertOk()
-        ->assertJsonPath('found_by', 'database')
-        ->assertJsonPath('product.barcode', '4740000000002')
-        ->assertJsonPath('product.ingredients', ['Aqua', 'Glycerin', 'Retinol'])
-        ->assertJsonPath('medicine', null);
-    Http::assertSentCount(1);
-
-    // The barcode the app scanned comes first.
-    sendLabel(['barcode' => '4740000000001'])->assertOk()->assertJsonPath('found_by', 'database')->assertJsonPath('product.barcode', '4740000000001');
-});
-
-it('searches the open databases for a front, and keeps what they know under its own barcode', function () {
-    claudeReadsFront(['name' => 'Öökreem retinooliga']);
-    openFactsFind(['openbeautyfacts' => [
-        ['code' => '4740000999991', 'product_name' => 'Päevakreem', 'brands' => 'Saar & Sammal', 'ingredients_text' => 'Aqua, Glycerin'],
-        ['code' => '4740000999992', 'product_name' => 'Öökreem retinooliga', 'brands' => 'Another brand', 'ingredients_text' => 'Aqua, Paraffinum Liquidum'],
-        ['code' => '4740000999993', 'product_name' => 'Öökreem retinooliga', 'brands' => 'Saar & Sammal', 'ingredients_text' => ''],
-        [
-            'code' => '4740000123457',
-            'product_name' => 'Ookreem retinooliga 50 ml',
-            'brands' => 'Saar & Sammal,Saar',
-            'categories_tags' => ['en:face-creams', 'en:night-creams'],
-            'ingredients_text_en' => 'Ingredients: Aqua, Glycerin, Parfum (Limonene, Linalool), Retinyl Palmitate*.',
+it('gives what a front or an object usually holds, marked as an estimate, and never keeps it', function () {
+    claudeReads(nightCream([
+        'view' => 'front',
+        'name' => 'Non-stick frying pan',
+        'brand' => 'Tefal',
+        'kind' => 'household',
+        'category' => 'kitchenware',
+        'ingredients' => [
+            ingredient('PTFE non-stick coating', 'Non-stick coating', ['level' => 'know', 'hormones' => [['hormone' => 'thyroid', 'evidence' => 'human']], 'why' => 'Older coatings were made with PFAS linked to thyroid changes.']),
+            ingredient('Aluminium', 'Pan body'),
         ],
-    ]]);
+        'summary' => 'Worth knowing about its coating; keep it below high heat.',
+    ]));
 
     sendLabel()->assertOk()
-        ->assertJsonPath('found_by', 'open_facts')
-        ->assertJson(['product' => [
-            'barcode' => '4740000123457',
-            'name' => 'Ookreem retinooliga 50 ml',
-            'brand' => 'Saar & Sammal',
-            'kind' => 'cosmetic',
-            'category' => 'face-care',
-            'types' => ['en:face-creams', 'en:night-creams'],
-            'ingredients' => ['Aqua', 'Glycerin', 'Parfum (Limonene, Linalool)', 'Retinyl Palmitate'],
-            'ingredient_ids' => [null, null, null, null],
-            'source' => 'openbeautyfacts',
-            'source_url' => null,
-        ]]);
-
-    // Open Beauty Facts first, for a cosmetic, which knew it: nobody else was asked.
-    [$search] = openFactsSearches();
-    parse_str(parse_url($search->url(), PHP_URL_QUERY), $query);
-    expect($search->url())->toStartWith('https://world.openbeautyfacts.org/cgi/search.pl?')
-        ->and($query)->toBe([
-            'search_terms' => 'Saar & Sammal Öökreem retinooliga',
-            'search_simple' => '1',
-            'action' => 'process',
-            'json' => '1',
-            'page_size' => '5',
-            'fields' => 'code,product_name,brands,ingredients_text,ingredients_text_en,ingredients,categories_tags,countries_tags,additives_tags,nutriments,nova_group',
-        ])
-        ->and($search->header('User-Agent'))->toBe(['Hooli/1.0 (hello@gethooli.app)']);
-    Http::assertSentCount(2);
-
-    // The next scan of its barcode finds it here.
-    $this->get('/api/v1/products/4740000123457')->assertOk()->assertJsonPath('product.source', 'openbeautyfacts');
-    Http::assertSentCount(2);
-    expect(Product::count())->toBe(1);
-});
-
-it('looks a front up on the web last, and keeps the list under the barcode the app scanned', function () {
-    claudeReadsFront();
-    openFactsFind();
-    claudeFinds(['ingredients' => ['Aqua', ' Glycerin ', 'Retinyl Palmitate', ''], 'source_url' => 'https://saarsammal.ee/en/night-cream']);
-
-    sendLabel()->assertOk()->assertJson([
-        'product' => [
-            'barcode' => '4740000123456',
-            'name' => 'Night cream with retinol',
-            'brand' => 'Saar & Sammal',
-            'kind' => 'cosmetic',
-            'category' => 'face-care',
-            'ingredients' => ['Aqua', 'Glycerin', 'Retinyl Palmitate'],
-            'image_url' => null,
-            'source' => 'web',
-            'source_url' => 'https://saarsammal.ee/en/night-cream',
-            'confirmations' => 0,
-        ],
-        'medicine' => null,
-        'found_by' => 'web',
-    ]);
-    expect(Product::sole())->source->toBe('web')->confirmations->toBe(0);
-
-    // One call, with a few paid searches at most, answering through a strict tool it is asked, not made, to call.
-    [$request] = webSearches();
-    expect($request['model'])->toBe('claude-opus-5-5')
-        ->and($request['tools'][0])->toBe(['type' => 'web_search_20260318', 'name' => 'web_search', 'max_uses' => 3, 'response_inclusion' => 'excluded'])
-        ->and($request['tools'][1])->toMatchArray(['name' => 'record_ingredients', 'strict' => true])
-        ->and($request['tools'][1]['input_schema'])->toBe([
-            'type' => 'object',
-            'properties' => [
-                'ingredients' => ['type' => 'array', 'items' => ['type' => 'string']],
-                'source_url' => ['anyOf' => [['type' => 'string'], ['type' => 'null']]],
-            ],
-            'required' => ['ingredients', 'source_url'],
-            'additionalProperties' => false,
-        ])
-        ->and($request['tools'])->toHaveCount(2)
-        ->and($request['tool_choice'])->toBe(['type' => 'auto'])
-        ->and($request['output_config'])->toBe(['effort' => 'medium'])
-        ->and($request['system'])->toContain('calling record_ingredients once')
-        ->and($request['fallbacks'])->toBe('default')
-        ->and($request->header('anthropic-beta'))->toBe(['server-side-fallback-2026-07-01'])
-        ->and($request['messages'][0]['content'])->toBe("Find the ingredient list of this product.\n\nBrand: Saar & Sammal\nName: Night cream with retinol\nWhat it is: cosmetic, face-care\nBarcode: 4740000123456");
-    expect(openFactsSearches())->toHaveCount(3);
-
-    // The next scan finds it here.
-    $this->get('/api/v1/products/4740000123456')->assertOk()->assertJsonPath('product.source', 'web');
-    Http::assertSentCount(5);
-});
-
-it('answers from the web without a barcode, and keeps nothing', function () {
-    claudeReadsFront();
-    openFactsFind();
-    claudeFinds(['ingredients' => ['Aqua', 'Glycerin', 'Retinyl Palmitate'], 'source_url' => 'https://www.kaubamaja.ee/saar-sammal-night-cream']);
-
-    sendLabel(['barcode' => null])->assertOk()
-        ->assertJsonPath('found_by', 'web')
-        ->assertJsonPath('product.barcode', null)
-        ->assertJsonPath('product.source', 'web')
-        ->assertJsonPath('product.source_url', 'https://www.kaubamaja.ee/saar-sammal-night-cream')
-        ->assertJsonPath('product.updated_at', null);
-    expect(Product::count())->toBe(0)
-        ->and(webSearches()[0]['messages'][0]['content'])->not->toContain('Barcode');
-});
-
-it('carries on a web search Claude paused', function () {
-    claudeReadsFront();
-    openFactsFind();
-    claudeFinds(['ingredients' => ['Aqua', 'Glycerin', 'Retinyl Palmitate'], 'source_url' => 'https://saarsammal.ee/en/night-cream'], pauses: true);
-
-    sendLabel()->assertOk()->assertJsonPath('found_by', 'web');
-
-    // The paused turn goes back as it came, for Claude to finish.
-    [$paused, $continued] = webSearches();
-    expect($paused['messages'])->toHaveCount(1)
-        ->and($continued['messages'][1]['role'])->toBe('assistant')
-        ->and($continued['messages'][1]['content'][0])->toMatchArray(['type' => 'server_tool_use', 'id' => 'srvtoolu_01', 'name' => 'web_search'])
-        ->and($continued['tools'])->toBe($paused['tools']);
-});
-
-it('asks for a photo of the ingredient list when nobody knows the front, naming the product', function () {
-    claudeReadsFront(['name' => 'Keefir 2,5%', 'brand' => 'Tere', 'kind' => 'food', 'category' => 'drink']);
-    openFactsFind(['openfoodfacts' => [
-        ['code' => '4740125000016', 'product_name' => 'Keefir 2,5%', 'brands' => 'Tere', 'ingredients_text' => ''],
-    ]]);
-    claudeFinds(['ingredients' => [], 'source_url' => null]);
-
-    sendLabel()->assertStatus(422)->assertExactJson([
-        'message' => 'needs_ingredients',
-        'product' => ['name' => 'Keefir 2,5%', 'brand' => 'Tere', 'kind' => 'food', 'category' => 'drink'],
-    ]);
+        ->assertJsonPath('found_by', 'estimate')
+        ->assertJsonPath('product.barcode', '4740000123456')
+        ->assertJsonPath('product.category', 'kitchenware')
+        ->assertJsonPath('product.ingredients', ['PTFE non-stick coating', 'Aluminium'])
+        ->assertJsonPath('product.confirmations', 0)
+        ->assertJsonPath('analysis.estimated', true)
+        ->assertJsonPath('analysis.ingredients.0.hormones', [['hormone' => 'thyroid', 'evidence' => 'human']]);
     expect(Product::count())->toBe(0);
-
-    // Open Food Facts first, for a food, then the others, then the web.
-    expect(collect(openFactsSearches())->map(fn (Request $request) => parse_url($request->url(), PHP_URL_HOST))->all())
-        ->toBe(['world.openfoodfacts.org', 'world.openbeautyfacts.org', 'world.openproductsfacts.org'])
-        ->and(webSearches())->toHaveCount(1);
 });
 
-it('takes no answer from the web but a well-formed call of record_ingredients', function (array $answer, string $stopReason) {
-    claudeReadsFront();
-    openFactsFind();
-    claudeSearches($answer, $stopReason);
+it('asks the stronger model about a photo the first can’t make out, or declines', function (?array $first, string $stopReason) {
+    claudeReads($first, retry: nightCream(), stopReason: $stopReason);
 
-    sendLabel()->assertStatus(422)->assertJsonPath('message', 'needs_ingredients');
-    expect(Product::count())->toBe(0)
-        ->and(webSearches())->toHaveCount(1);
+    sendLabel()->assertOk()->assertJsonPath('product.name', 'Night cream with retinol');
+    expect(modelsAsked())->toBe(['claude-haiku-5-5', 'claude-sonnet-5-5']);
 })->with([
-    'no call' => [[['type' => 'text', 'text' => '{"ingredients": ["Aqua"], "source_url": null}']], 'end_turn'],
-    'a refusal' => [[], 'refusal'],
-    'an answer cut short' => [[['type' => 'tool_use', 'id' => 'toolu_01', 'name' => 'record_ingredients', 'input' => ['ingredients' => ['Aqua']]]], 'max_tokens'],
-    'a call of another shape' => [[['type' => 'tool_use', 'id' => 'toolu_01', 'name' => 'record_ingredients', 'input' => ['ingredients' => 'Aqua, Glycerin', 'source_url' => null]]], 'tool_use'],
-    'a call without its page' => [[['type' => 'tool_use', 'id' => 'toolu_01', 'name' => 'record_ingredients', 'input' => ['ingredients' => ['Aqua']]]], 'tool_use'],
-    'a call of another tool' => [[['type' => 'tool_use', 'id' => 'toolu_01', 'name' => 'web_fetch', 'input' => ['ingredients' => ['Aqua'], 'source_url' => null]]], 'tool_use'],
+    'unreadable' => [['view' => 'unreadable', 'name' => 'Photo of a shelf', 'ingredients' => []] + nightCream(), 'end_turn'],
+    'a list too blurred to hold a name' => [['ingredients' => [ingredient(' ', 'Unknown')]] + nightCream(), 'end_turn'],
+    'a front with nothing to go on' => [['view' => 'front', 'ingredients' => []] + nightCream(), 'end_turn'],
+    'a refusal' => [nightCream(), 'refusal'],
+    'an answer cut short' => [nightCream(), 'max_tokens'],
 ]);
 
-it('asks for the ingredient list when the web search fails', function () {
-    claudeReadsFront();
-    openFactsFind();
-    Http::fake(['api.anthropic.com/*' => fn (Request $request) => isset($request['tools']) ? Http::response(['type' => 'error', 'error' => ['type' => 'invalid_request_error', 'message' => 'Web search is not enabled']], 400) : null]);
+it('says so when neither model can make the photo out, and keeps nothing', function () {
+    $shelf = ['view' => 'unreadable', 'name' => 'Photo of a shelf', 'ingredients' => []] + nightCream();
+    claudeReads($shelf, retry: $shelf);
 
-    sendLabel()->assertStatus(422)->assertJsonPath('message', 'needs_ingredients');
-    expect(Product::count())->toBe(0);
+    sendLabel()->assertStatus(422)->assertExactJson(['message' => 'unreadable']);
+    expect(modelsAsked())->toBe(['claude-haiku-5-5', 'claude-sonnet-5-5'])
+        ->and(Product::count())->toBe(0);
 });
 
-it('replaces a list from the web with a fuller one read on the label', function () {
-    storeProduct(['source' => 'web', 'source_url' => 'https://saarsammal.ee/en/night-cream', 'confirmations' => 0, 'ingredients' => ['Aqua', 'Glycerin']]);
-    claudeReads();
+it('asks no other model when the settings name none', function () {
+    config(['hooli.models.retry' => null]);
+    claudeReads(['view' => 'unreadable', 'ingredients' => []] + nightCream());
 
-    sendLabel()->assertOk()
-        ->assertJsonPath('found_by', 'label')
-        ->assertJsonPath('product.ingredients', ['Aqua', 'Glycerin', 'Retinyl Palmitate'])
-        ->assertJsonPath('product.source', 'hooli')
-        ->assertJsonPath('product.source_url', null)
-        ->assertJsonPath('product.confirmations', 1);
-    expect(Product::sole())->source->toBe('hooli')->source_url->toBeNull();
+    sendLabel()->assertStatus(422)->assertExactJson(['message' => 'unreadable']);
+    expect(modelsAsked())->toBe(['claude-haiku-5-5']);
 });
 
 it('refuses a file that isn’t a photo, or a barcode that isn’t one, before asking Claude', function () {

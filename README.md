@@ -90,24 +90,23 @@ Claude.
   or the web; a list read on a label before, or a longer one, stays as it is (200). Either way the answer is the
   `product`. 422 with Laravel's usual `message` and `errors` when a field is missing or wrong.
 - `POST /api/v1/labels`, with the AI on (503 `ai_off` otherwise, and nothing is sent to Claude): a photo of any side of
-  the product (`image`: JPEG, PNG or HEIC, up to 8 MB), with the `barcode` if there is one. Claude says what the photo
-  shows, and the answer, `product`, `medicine` and `found_by`, says where the ingredients came from:
-  - an ingredient list (`label`): Claude reads it, with the name. With a barcode, the read adds the product, confirms
-    the one we have, or replaces a shorter list from Open Facts or the web.
-  - a medicine box (`medicine`): Claude reads its active substances, strength and form, which come back as
-    `medicine`. The product's `ingredients` are its active substances, and with a barcode it is kept, so the next scan
-    finds it without a photo.
-  - the front (`database`, `open_facts` or `web`): Claude recognises the brand and name, and the list is looked up. In
-    our products first, by the barcode or the name and brand, whatever their case, the most confirmed first. Then in
-    the Open Facts databases' search, which must agree on the brand and name; what they know is kept under its own
-    barcode. Then on the web, where Claude looks for the list on the brand's own site or a major retailer's product
-    page. The web comes last because every search is billed on top of Claude's tokens ($10 per 1,000 searches, three
-    at most per photo). What it finds is kept under the barcode with `source` `web` and no confirmations, until a
-    label photo with a fuller list replaces it.
+  a product, or of anything at all (`image`: JPEG, PNG or HEIC, up to 8 MB), with the `barcode` if there is one and
+  the app's `locale` (`en`, `et` or `ru`; English if none). Claude says what the photo shows, what it is made of, and
+  what each ingredient may do to hormones. The answer is the `product`, its `medicine` or null, the `analysis`, and
+  `found_by`, where the ingredients came from:
+  - an ingredient list (`label`): Claude reads it. With a barcode, the read adds the product, confirms the one we
+    have, or replaces a shorter list from Open Facts.
+  - a medicine box (`medicine`): Claude reads its active substances, strength and form, and says what kind of
+    medicine it is (`family`) and what to ask about it (`questions`). Its `ingredients` are its active substances
+    first, then the others the photo shows; with a barcode it is kept, so the next scan finds it without a photo.
+  - a front, or an object with no list at all, a frying pan say (`estimate`): Claude recognises the product, and gives
+    what it contains as far as it knows it, or what such a product usually holds. That is never kept.
 
-  422 `needs_ingredients` when nobody knows the list of a front, with the `product` Claude recognised (`name`, `brand`,
-  `kind`, `category`), so the app can ask for a photo of its ingredients. 422 `unreadable` when the photo shows nothing
-  to read and no product to recognise.
+  The `analysis` is what the phone scores by: its `locale`, whether the list is an `estimate`d one, a `summary`, and
+  for each ingredient its `name`, `role`, `level` (`fine`, `know` or `swap`), the `hormones` it was studied for with
+  the `evidence` (`lab`, `animal` or `human`), `why`, the profile flags it `matters_for` and its `level_for` them. A
+  medicine's active substance is never `swap`. 422 `unreadable` when neither model can make out the photo, and
+  `invalid_locale` for a language the app doesn't speak.
 - `GET /api/v1/products?category=food&exclude={barcode}&country=ee&types=en:breads,en:white-breads`: better swaps, up
   to 40 products of the category with their ingredients, the most confirmed first and, of food, the richest in fibre.
   With a `country`, only those sold there. With the `types` of the product scanned, from the most general to the most
@@ -135,11 +134,10 @@ in brackets (`taimeõli (rapsiõli)`); a product they haven't read that way give
 without ids.
 
 Reading photos needs the AI on (`HOOLI_AI=true`), a Claude API key in `ANTHROPIC_API_KEY`, and PHP's Imagick
-extension, with HEIC support for iPhone photos. Looking a front up on the web needs web search allowed for the
-organisation in the Claude Console, as it is unless an admin turns it off; without it, a front Claude can't find
-elsewhere gets `needs_ingredients`. Photos are never kept: each is read in memory, sent to Claude without its
-metadata, and dropped with the request. The web search sends only the product's brand, name, kind, category and
-barcode. The models are set in `app/LabelReader.php` and `app/WebIngredients.php`.
+extension, with HEIC support for iPhone photos. Photos are never kept: each is read in memory, sent to Claude without
+its metadata, and dropped with the request. Claude Haiku 5.5 reads every photo, and one it can't make out goes once to
+Claude Sonnet 5.5. Both are settings, `HOOLI_LABEL_MODEL` and `HOOLI_RETRY_MODEL` (none, or the same model, skips the
+retry); the prompt is in `app/LabelReader.php`.
 
 ### The weekly import
 

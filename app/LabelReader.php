@@ -10,59 +10,101 @@ use Illuminate\Support\Str;
 use Imagick;
 
 /**
- * Reads the photo of a product with Claude, whichever side it shows: what the product is, its ingredients in the order
- * of the label, and for a medicine its active substances. The photo is held in memory for the read and dropped with
- * the request: it is never saved, and it leaves without its metadata, such as where it was taken.
+ * Reads the photo of a product with Claude, whichever side it shows, and anything at all, a frying pan too: what the
+ * product is, what it is made of, and what each ingredient may do to hormones, for the phone to score. The photo is
+ * held in memory for the read and dropped with the request: it is never saved, and it leaves without its metadata,
+ * such as where it was taken.
  */
 final class LabelReader
 {
-    // Claude Opus 5.5 reads labels accurately even at low effort, where it answers fastest.
-    private const MODEL = 'claude-opus-5-5';
-
     // The most Claude takes in on the long edge: a bigger photo would be shrunk on arrival anyway.
     private const LONG_EDGE = 2576;
 
+    // The languages the app speaks, which Claude writes its notes in.
+    public const LANGUAGES = ['en' => 'English', 'et' => 'Estonian', 'ru' => 'Russian'];
+
+    // What the app scores by: the hormones it shows, its three levels, the evidence it names, and the situations and
+    // medicines of its profile that can make an ingredient matter more.
+    private const HORMONES = ['oestrogen', 'progesterone', 'testosterone', 'thyroid', 'cortisol', 'insulin'];
+
+    private const LEVELS = ['fine', 'know', 'swap'];
+
+    private const EVIDENCE = ['lab', 'animal', 'human'];
+
+    private const FLAGS = ['thyroid', 'meningioma', 'endometriosis', 'pcos', 'pregnancy', 'menopause', 'levothyroxine', 'contraceptive', 'progestin', 'hrt'];
+
     private const INSTRUCTIONS = <<<'TEXT'
-        You read photos of product labels for Hooli, an app that tells women what in a product may affect their hormones.
+        You read photos for Hooli, an app that helps women see what in the products they use may affect their hormones. From one photo, you say what the product is, what it is made of, and what each ingredient may do to hormones. The app turns your answer into a score from 0 to 100 and a page the person reads, so be accurate and calm: Hooli informs, it never frightens.
 
-        The photos are taken in Estonia: a label may be in Estonian, Russian, Latvian, Finnish or English, and cosmetics list their ingredients by their Latin INCI names. When the ingredients are printed in several languages, read the most complete list.
+        What the photo shows, the view:
+        - ingredients: you can read the product's ingredient list.
+        - medicine: a medicine box, blister or leaflet whose active substances you can read.
+        - front: you can tell what the product is, but can't read its ingredients. The front of a pack, or an object with no list at all, such as a frying pan, a water bottle or a pair of leggings.
+        - unreadable: you can't even tell what the product is.
 
-        A photo may show any side of the product.
+        Labels can be in any language, and cosmetics list their ingredients by their INCI names. When the list is printed in several languages, read the most complete one.
 
-        - view: what the photo shows. ingredients when you can read its ingredient list; medicine for a medicine box or leaflet whose active substances you can read; front when you can read neither, but can tell which product it is by the brand and name printed on it; unreadable when you can't tell even that.
-        - name: the product's name as printed, without the brand. If you can't read one, a short description in English, such as "Face cream".
+        The fields:
+        - name: the product's name as printed, without the brand. If none can be read, a short plain description, such as "Non-stick frying pan".
         - brand: as printed, or null.
-        - kind and category: what the product is. A medicine is of kind and category medicine.
-        - ingredients: every ingredient, in the order of the label, one per entry. Write each by its INCI name when it has one (Aqua, Glycerin, Retinyl Palmitate), otherwise by its English name (sugar, wheat flour); food additives may keep their E number (E211). Leave out percentages, footnote marks and headings such as "Ingredients:".
-        - medicine: only for a medicine box or leaflet, its active substances by their English INN (Levonorgestrel, Ethinylestradiol), its strength as printed and its form in English (film-coated tablets). For a medicine, the ingredients are its other ingredients, if the photo shows them. For anything else, null.
+        - kind and category: what the product is. A medicine is of kind and category medicine. Pans, food containers and kitchen utensils are kitchenware, of kind household.
+        - ingredients: one entry per ingredient, or per material for an object. For a list you can read, every ingredient in the label's order; for a medicine, its active substances first, then the other ingredients the photo shows. For a front, what this product contains as far as you know it, or else what such a product usually contains or is made of (a non-stick pan: its coating, the metal of its body, its handle). Leave out percentages, footnote marks and headings such as "Ingredients:". For each:
+          - name: its INCI name when it has one (Aqua, Glycerin, Retinyl Palmitate), an active substance its INN (Ibuprofen), anything else its English name (sugar, wheat flour, PTFE non-stick coating). A food additive may keep its E number (E211).
+          - role: what it does in this product, in two to five words (Moisturiser, Preservative, Painkiller, Non-stick coating).
+          - level: fine, know or swap, as below.
+          - hormones: each hormone it has been shown to affect, with the strongest evidence of it: human for studies of people, animal, or lab for cells. Empty when there is none.
+          - why: for know and swap, one or two plain sentences: what it may do to which hormone, and how much that matters at the amounts in this kind of product. Empty for fine.
+          - matters_for: the situations, as below, in which it matters more. Empty when there are none.
+          - level_for: its level for people in those situations, the same as its level or higher.
+        - summary: one or two sentences on what this product means for hormones, overall.
+        - medicine: for a medicine, its active substances by their INN, its strength and form as printed, its family (what kind of medicine it is, such as "Anti-inflammatory painkiller (NSAID)"), and two or three short questions worth asking a doctor or pharmacist about it. For anything else, null.
 
-        Read only what the photo shows: never complete a list from what you know of the product. If the photo shows no ingredients you can read and no medicine, give an empty ingredients list and a null medicine.
+        The levels:
+        - fine: no credible evidence that it affects hormones at the amounts found in this kind of product. Most ingredients are fine.
+        - know: worth knowing. Evidence from the lab or animals, evidence in people only at higher exposures, a substance regulators are reviewing for its effect on hormones, or an effect on hormones that is the point of the product, such as a hormonal contraceptive or a thyroid hormone. Added sugars (sugar, syrups, dextrose) and refined flours raise blood sugar and insulin: they are know for insulin when they are a large part of the food, as in ketchup and other sweet sauces, soft drinks, sweets or white bread, and they matter more for pcos.
+        - swap: better to swap. Good evidence that it disrupts hormones at the amounts people are exposed to, such as the substances the EU lists or restricts as endocrine disruptors, when easy alternatives exist. A medicine's active substance is never swap: it is prescribed for a reason, so it is know at most, to talk over with a doctor.
+
+        Judge by the weight of the evidence, as bodies such as the EU's SCCS, EFSA and ECHA and the WHO assess it, and for a medicine by its package leaflet: not by the internet's fears. But don't wave real evidence away: an ingredient shown to affect a hormone, in people, in animals or in the lab, is at least know, with that evidence named, even when this product holds little of it. Fine is for what has no such evidence. Food additives count like any other ingredient: preservatives, stabilisers, sweeteners and colours have been studied for their effects on hormones too.
+
+        The situations: thyroid (a thyroid condition), meningioma, endometriosis, pcos, pregnancy (pregnant or trying to be), menopause, levothyroxine (taking thyroid hormone), contraceptive (taking hormonal contraception), progestin (taking a progestin treatment), hrt (taking hormone replacement therapy).
+
+        When you can read a list or a medicine, give only what the photo shows: never add to it from what you know of the product. Write role, why, summary, form, family and questions in the language the message asks for.
         TEXT;
 
     /**
-     * The read: view (ingredients, medicine or front), name, brand, kind, category, ingredients, and medicine
-     * (active_substances, strength, form) or null. Null itself when the photo shows nothing to read and no product to
-     * recognise.
+     * The read: view (ingredients, medicine or front), name, brand, kind, category, ingredients (each with its name,
+     * role, level, hormones, why, matters_for and level_for), summary, and medicine (active_substances, strength, form,
+     * family, questions) or null. A front's ingredients are what such a product usually holds. Null when the photo
+     * shows nothing to read and no product to recognise.
      */
-    public static function read(UploadedFile $photo): ?array
+    public static function read(UploadedFile $photo, string $locale): ?array
+    {
+        $jpeg = self::jpeg($photo);
+        $label = config('hooli.models.label');
+        $retry = config('hooli.models.retry');
+
+        // The low-cost model reads the photo; one it can't make out, or declines, goes once to the stronger one.
+        return self::ask($label, $jpeg, $locale)
+            ?? ($retry && $retry !== $label ? self::ask($retry, $jpeg, $locale) : null);
+    }
+
+    private static function ask(string $model, string $jpeg, string $locale): ?array
     {
         $message = self::claude()->beta->messages->create(
             maxTokens: 16000,
-            model: self::MODEL,
+            model: $model,
             system: self::INSTRUCTIONS,
             messages: [[
                 'role' => 'user',
                 'content' => [
-                    ['type' => 'image', 'source' => ['type' => 'base64', 'mediaType' => 'image/jpeg', 'data' => base64_encode(self::jpeg($photo))]],
-                    ['type' => 'text', 'text' => 'Read this label.'],
+                    ['type' => 'image', 'source' => ['type' => 'base64', 'mediaType' => 'image/jpeg', 'data' => base64_encode($jpeg)]],
+                    ['type' => 'text', 'text' => 'Read this product. Write in '.self::LANGUAGES[$locale].'.'],
                 ],
             ]],
             outputConfig: ['effort' => 'low', 'format' => ['type' => 'json_schema', 'schema' => self::schema()]],
-            // Should Claude decline, the API hands the read to the fallback model it picks.
-            fallbacks: 'default',
-            betas: ['server-side-fallback-2026-07-01'],
         );
-        if ($message->stopReason === 'refusal') {
+        if ($message->stopReason !== 'end_turn') {
+            // A refusal, or an answer cut short.
             return null;
         }
 
@@ -71,32 +113,37 @@ final class LabelReader
 
         $read['name'] = Str::limit(trim($read['name']), 255, '');
         $read['brand'] = Str::limit(trim($read['brand'] ?? ''), 255, '') ?: null;
-        $read['ingredients'] = self::clean($read['ingredients']);
+        $read['summary'] = trim($read['summary']);
+        $read['ingredients'] = collect($read['ingredients'])
+            ->map(fn (array $ingredient) => [...$ingredient, 'name' => Str::limit(trim($ingredient['name']), 255, '')])
+            ->filter(fn (array $ingredient) => $ingredient['name'] !== '')
+            ->values()
+            ->all();
         if ($read['medicine']) {
-            $read['medicine']['active_substances'] = self::clean($read['medicine']['active_substances']);
+            $read['medicine']['active_substances'] = collect($read['medicine']['active_substances'])->map(fn (string $name) => trim($name))->filter()->values()->all();
             $read['medicine'] = $read['medicine']['active_substances'] ? $read['medicine'] : null;
         }
 
-        // The view goes by what Claude did read, whatever it called the photo: active substances make a medicine, an
-        // ingredient list a label. A front is taken at its word; anything else is unreadable.
+        // The view goes by what Claude did give, whatever it called the photo: active substances make a medicine. With
+        // no ingredients, even guessed, there is nothing to score.
         $read['view'] = match (true) {
             $read['medicine'] !== null => 'medicine',
-            $read['ingredients'] !== [] => 'ingredients',
+            $read['ingredients'] === [] => 'unreadable',
             $read['view'] === 'front' => 'front',
+            $read['view'] === 'ingredients' => 'ingredients',
             default => 'unreadable',
         };
 
         return $read['view'] !== 'unreadable' ? $read : null;
     }
 
-    /** Claude, for the reads here and the searches of WebIngredients, which take longer. */
-    public static function claude(int $timeout = 45): Client
+    private static function claude(): Client
     {
         return new Client(
             apiKey: (string) config('services.anthropic.key'),
             requestOptions: [
                 // Through Laravel's HTTP stack, so that Http::fake() stands in for Claude in the tests.
-                'transporter' => new Guzzle(['handler' => Http::buildHandlerStack(), 'connect_timeout' => 5, 'timeout' => $timeout]),
+                'transporter' => new Guzzle(['handler' => Http::buildHandlerStack(), 'connect_timeout' => 5, 'timeout' => 45]),
                 'maxRetries' => 1,
             ],
         );
@@ -123,38 +170,44 @@ final class LabelReader
     {
         $text = ['type' => 'string'];
         $textOrNull = ['anyOf' => [$text, ['type' => 'null']]];
-
-        return [
+        $texts = ['type' => 'array', 'items' => $text];
+        $level = ['type' => 'string', 'enum' => self::LEVELS];
+        $object = fn (array $properties) => [
             'type' => 'object',
-            'properties' => [
-                'view' => ['type' => 'string', 'enum' => ['ingredients', 'medicine', 'front', 'unreadable']],
-                'name' => $text,
-                'brand' => $textOrNull,
-                'kind' => ['type' => 'string', 'enum' => config('hooli.kinds')],
-                'category' => ['type' => 'string', 'enum' => config('hooli.categories')],
-                'ingredients' => ['type' => 'array', 'items' => $text],
-                'medicine' => ['anyOf' => [
-                    [
-                        'type' => 'object',
-                        'properties' => [
-                            'active_substances' => ['type' => 'array', 'items' => $text],
-                            'strength' => $textOrNull,
-                            'form' => $textOrNull,
-                        ],
-                        'required' => ['active_substances', 'strength', 'form'],
-                        'additionalProperties' => false,
-                    ],
-                    ['type' => 'null'],
-                ]],
-            ],
-            'required' => ['view', 'name', 'brand', 'kind', 'category', 'ingredients', 'medicine'],
+            'properties' => $properties,
+            'required' => array_keys($properties),
             'additionalProperties' => false,
         ];
-    }
 
-    /** @return list<string> */
-    private static function clean(array $names): array
-    {
-        return collect($names)->map(fn (string $name) => trim($name))->filter()->values()->all();
+        return $object([
+            'view' => ['type' => 'string', 'enum' => ['ingredients', 'medicine', 'front', 'unreadable']],
+            'name' => $text,
+            'brand' => $textOrNull,
+            'kind' => ['type' => 'string', 'enum' => config('hooli.kinds')],
+            'category' => ['type' => 'string', 'enum' => config('hooli.categories')],
+            'ingredients' => ['type' => 'array', 'items' => $object([
+                'name' => $text,
+                'role' => $text,
+                'level' => $level,
+                'hormones' => ['type' => 'array', 'items' => $object([
+                    'hormone' => ['type' => 'string', 'enum' => self::HORMONES],
+                    'evidence' => ['type' => 'string', 'enum' => self::EVIDENCE],
+                ])],
+                'why' => $text,
+                'matters_for' => ['type' => 'array', 'items' => ['type' => 'string', 'enum' => self::FLAGS]],
+                'level_for' => $level,
+            ])],
+            'summary' => $text,
+            'medicine' => ['anyOf' => [
+                $object([
+                    'active_substances' => $texts,
+                    'strength' => $textOrNull,
+                    'form' => $textOrNull,
+                    'family' => $text,
+                    'questions' => $texts,
+                ]),
+                ['type' => 'null'],
+            ]],
+        ]);
     }
 }

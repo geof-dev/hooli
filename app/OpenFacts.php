@@ -10,10 +10,10 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 
 /**
- * The open databases of products, asked in turn about a barcode we don't have, or a product whose front was
- * photographed: Open Beauty Facts, Open Food Facts, Open Products Facts. A product they know counts only with a name to
- * show and its ingredient list, the one thing the app needs; it comes with what else they know of it, for the phone to
- * score it: its types, the countries it is sold in, its nutrition, processing and additives.
+ * The open databases of products, asked in turn about a barcode we don't have: Open Beauty Facts, Open Food Facts,
+ * Open Products Facts. A product they know counts only with a name to show and its ingredient list, the one thing the
+ * app needs; it comes with what else they know of it, for the phone to score it: its types, the countries it is sold
+ * in, its nutrition, processing and additives.
  */
 final class OpenFacts
 {
@@ -101,45 +101,6 @@ final class OpenFacts
         return null;
     }
 
-    /**
-     * The product with this brand and name, by the databases' full-text search, not yet saved, under its own barcode.
-     * The database of its kind is asked first. Null when none of the first results is plausibly the same product, with
-     * its ingredients.
-     */
-    public static function search(string $name, ?string $brand, string $kind): ?Product
-    {
-        $databases = collect(self::DATABASES)->sortBy(fn (array $database) => $database['kind'] !== $kind);
-
-        foreach ($databases as $source => $database) {
-            try {
-                $response = self::http()->get("{$database['url']}/cgi/search.pl", [
-                    'search_terms' => trim("$brand $name"),
-                    'search_simple' => 1,
-                    'action' => 'process',
-                    'json' => 1,
-                    'page_size' => 5,
-                    'fields' => 'code,product_name,brands,ingredients_text,ingredients_text_en,ingredients,categories_tags,countries_tags,additives_tags,nutriments,nova_group',
-                ]);
-            } catch (ConnectionException) {
-                continue;
-            }
-
-            foreach ($response->successful() ? $response->json('products') ?? [] : [] as $found) {
-                $barcode = (string) ($found['code'] ?? '');
-                if (! preg_match(Product::BARCODE, $barcode) || ! self::matches($found, $name, $brand)) {
-                    continue;
-                }
-
-                $product = self::product($barcode, $source, $found);
-                if ($product) {
-                    return $product;
-                }
-            }
-        }
-
-        return null;
-    }
-
     /** Their API asks callers to say who they are. Each database gets a few seconds. */
     public static function http(): PendingRequest
     {
@@ -172,32 +133,6 @@ final class OpenFacts
             'image_url' => $found['image_front_url'] ?? $found['image_url'] ?? null,
             'source' => $source,
         ]);
-    }
-
-    // Whether a search result is plausibly the product photographed. The brands must agree when both are known (L'Oréal
-    // is L'Oréal Paris). The names are compared by their words, whatever their case, accents or order, leaving out the
-    // brands and the size: one may hold words the other lacks (Soft Cream is Nivea Soft Moisturising Cream 50 ml), as
-    // long as the shorter has two.
-    private static function matches(array $found, string $name, ?string $brand): bool
-    {
-        $words = fn (?string $text) => collect(preg_split('/[^a-z0-9]+/', Str::lower(Str::ascii(
-            preg_replace('/\b\d+([.,]\d+)?\s*(ml|cl|l|mg|g|kg|oz)\b/iu', ' ', (string) $text),
-        )), -1, PREG_SPLIT_NO_EMPTY));
-
-        $ourBrand = $words($brand)->implode(' ');
-        $theirBrands = collect(explode(',', $found['brands'] ?? ''))->map(fn (string $theirs) => $words($theirs)->implode(' '))->filter();
-        $agrees = fn (string $theirs) => str_contains(" $theirs ", " $ourBrand ") || str_contains(" $ourBrand ", " $theirs ");
-        if ($ourBrand !== '' && $theirBrands->isNotEmpty() && ! $theirBrands->contains($agrees)) {
-            return false;
-        }
-
-        $brandWords = $words($brand)->merge($words($found['brands'] ?? ''));
-        $nameWords = fn (?string $text) => $words($text)->diff($brandWords)->unique()->values();
-        [$shorter, $longer] = collect([$nameWords($name), $nameWords($found['product_name'] ?? '')])->sortBy->count()->values()->all();
-
-        return $shorter->isNotEmpty()
-            && $shorter->diff($longer)->isEmpty()
-            && ($shorter->count() >= 2 || $shorter->count() === $longer->count());
     }
 
     /**

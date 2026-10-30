@@ -29,9 +29,16 @@ return [
         'other' => 'Something else',
     ],
 
-    // Whether the app's API may ask Claude: to read the photo of a label, and to look a front up on the web. Off, the
-    // photos are refused, and the app reads labels on the phone and sends us their text.
+    // Whether the app's API may ask Claude to read the photo of a product. Off, the photos are refused, and the app
+    // reads labels on the phone and sends us their text.
     'ai' => env('HOOLI_AI', false),
+
+    // The Claude models that read photos: a fast, low-cost one for every photo, and a stronger one for a photo the
+    // first can't make out. The same retry model as the first, or none, skips the retry.
+    'models' => [
+        'label' => env('HOOLI_LABEL_MODEL', 'claude-haiku-5-5'),
+        'retry' => env('HOOLI_RETRY_MODEL', 'claude-sonnet-5-5'),
+    ],
 
     // The markets Hooli imports products for, by their ISO 3166-1 codes in lower case: every week, the products the
     // open databases say are sold there.
@@ -41,7 +48,7 @@ return [
     'kinds' => ['cosmetic', 'food', 'household', 'medicine', 'other'],
     'categories' => [
         'face-care', 'body-care', 'hair-care', 'sun-care', 'deodorant', 'oral-care', 'makeup', 'intimate-care',
-        'baby-care', 'fragrance', 'food', 'drink', 'supplement', 'cleaning', 'laundry', 'medicine', 'other',
+        'baby-care', 'fragrance', 'food', 'drink', 'supplement', 'cleaning', 'laundry', 'kitchenware', 'medicine', 'other',
     ],
 
     // Changes to EU rules, which the app checks the user's products against. Substances go by the ids the app knows
