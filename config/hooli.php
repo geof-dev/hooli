@@ -7,9 +7,9 @@ return [
     // The site's languages, by the prefix of their URLs: English has none (/), French is /fr, Estonian /et. Each
     // language names itself, and gives its own word for the guides' address.
     'locales' => [
-        'en' => ['name' => 'English', 'guides' => 'guides', 'og' => 'en_GB'],
-        'fr' => ['name' => 'Français', 'guides' => 'guides', 'og' => 'fr_FR'],
-        'et' => ['name' => 'Eesti', 'guides' => 'juhendid', 'og' => 'et_EE'],
+        'en' => ['name' => 'English', 'guides' => 'guides', 'privacy' => 'privacy', 'og' => 'en_GB'],
+        'fr' => ['name' => 'Français', 'guides' => 'guides', 'privacy' => 'confidentialite', 'og' => 'fr_FR'],
+        'et' => ['name' => 'Eesti', 'guides' => 'juhendid', 'privacy' => 'privaatsus', 'og' => 'et_EE'],
     ],
 
     // The guides, in the order the site lists them. Each is written once per language, in

@@ -58,7 +58,7 @@ it('gives search engines a sitemap of every page in every language', function ()
     $response = $this->get('/sitemap.xml')->assertOk()->assertHeader('Content-Type', 'application/xml');
     $xml = simplexml_load_string($response->getContent());
 
-    expect($xml->url)->toHaveCount(3 * (2 + count(config('hooli.guides'))));
+    expect($xml->url)->toHaveCount(3 * (3 + count(config('hooli.guides'))));
     expect($response->getContent())
         ->toContain('<loc>'.url('/et/juhendid/hormoonhairijad').'</loc>')
         ->toContain('<xhtml:link rel="alternate" hreflang="fr" href="'.url('/fr/guides/perturbateurs-endocriniens').'"/>');

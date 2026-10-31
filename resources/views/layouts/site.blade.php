@@ -98,6 +98,7 @@
             </a>
             <p class="max-w-[24em] text-on-pine-2">{{ __('Care for your hormones, one scan at a time. A mobile app, in development.') }}</p>
             <p><a class="link" href="mailto:{{ $contact }}">{{ $contact }}</a></p>
+            <p><a class="link" href="{{ localized_route('privacy') }}">{{ __('Privacy policy') }}</a></p>
         </div>
         <nav class="grid content-start gap-6 sm:grid-cols-2 md:grid-cols-1" aria-label="{{ __('Footer') }}">
             <div class="grid content-start gap-2">

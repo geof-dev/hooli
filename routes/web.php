@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\GuideController;
+use App\Http\Controllers\PrivacyController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\WaitlistController;
 use App\Http\Middleware\SetLocale;
@@ -16,6 +17,8 @@ foreach (config('hooli.locales') as $locale => $language) {
             Route::view('/', 'landing')->name('home');
             Route::get($language['guides'], [GuideController::class, 'index'])->name('guides');
             Route::get($language['guides'].'/{slug}', [GuideController::class, 'show'])->name('guide');
+            // The app links to the English one, /privacy, from its profile and its paywall.
+            Route::get($language['privacy'], PrivacyController::class)->name('privacy');
 
             // The waitlist takes no cookie: the form carries no CSRF token, and spam meets a honeypot and a rate
             // limit instead.

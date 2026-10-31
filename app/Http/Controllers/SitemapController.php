@@ -16,6 +16,7 @@ class SitemapController extends Controller
         $pages = [
             $everyLanguage('home'),
             $everyLanguage('guides'),
+            $everyLanguage('privacy'),
             ...Guide::all('en')->map(fn (Guide $guide) => $guide->translations()->map->url()->all()),
         ];
 
