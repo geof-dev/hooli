@@ -48,7 +48,14 @@ return [
     'kinds' => ['cosmetic', 'food', 'household', 'medicine', 'other'],
     'categories' => [
         'face-care', 'body-care', 'hair-care', 'sun-care', 'deodorant', 'oral-care', 'makeup', 'intimate-care',
-        'baby-care', 'fragrance', 'food', 'drink', 'supplement', 'cleaning', 'laundry', 'kitchenware', 'medicine', 'other',
+        'baby-care', 'fragrance', 'dairy', 'meat-fish', 'bread-cereals', 'fruit-veg', 'snacks-sweets', 'ready-meals',
+        'sauces-spreads', 'baby-food', 'food', 'drink', 'supplement', 'cleaning', 'laundry', 'kitchenware', 'medicine',
+        'other',
+    ],
+    // The aisles of food, whose swaps go the richest in fibre first. Food is what fits none of the others.
+    'food_categories' => [
+        'dairy', 'meat-fish', 'bread-cereals', 'fruit-veg', 'snacks-sweets', 'ready-meals', 'sauces-spreads', 'baby-food',
+        'food',
     ],
 
     // Changes to EU rules, which the app checks the user's products against. Substances go by the ids the app knows

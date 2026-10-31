@@ -73,7 +73,7 @@ it('imports the products sold in our countries that have a name and an ingredien
         'name' => 'Röst sai',
         'brand' => 'Leibur',
         'kind' => 'food',
-        'category' => 'food',
+        'category' => 'bread-cereals',
         'types' => ['en:breads', 'en:white-breads'],
         'countries' => ['ee'],
         'ingredients' => ['nisujahu', 'vesi', 'askorbiinhape'],

@@ -118,7 +118,7 @@ it('keeps what else Open Food Facts knows of a food: its types, countries, nutri
 
     $this->get('/api/v1/products/4740125100013')->assertOk()->assertJson(['product' => [
         'kind' => 'food',
-        'category' => 'food',
+        'category' => 'bread-cereals',
         'types' => ['en:plant-based-foods-and-beverages', 'en:breads', 'en:white-breads'],
         'countries' => ['ee', 'lv'],
         // In the order of the label, each with its id, as the label gives it; one they don't know has none.

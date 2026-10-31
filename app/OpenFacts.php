@@ -41,9 +41,18 @@ final class OpenFacts
             'face-care' => ['face', 'facial', 'eye', 'serum', 'micellar'],
             'body-care' => ['body', 'shower', 'bath', 'soap', 'hand', 'lotion', 'moistur'],
         ],
+        // First match first. A drink stays a drink, kefir too: the app reads its sugar against a drink's limit.
         'food' => [
             'supplement' => ['en:dietary-supplements', 'en:food-supplements', 'en:vitamins'],
+            'baby-food' => ['en:baby-foods', 'en:baby-milks', 'en:infant-formulas'],
             'drink' => ['en:beverages'],
+            'dairy' => ['en:dairies', 'en:milks', 'en:cheeses', 'en:yogurts', 'en:butters', 'en:eggs'],
+            'ready-meals' => ['en:meals', 'en:pizzas', 'en:soups', 'en:sandwiches'],
+            'snacks-sweets' => ['en:snacks', 'en:sweet-snacks', 'en:salty-snacks', 'en:confectioneries', 'en:chocolates', 'en:biscuits-and-cakes', 'en:desserts'],
+            'meat-fish' => ['en:meats', 'en:meats-and-their-products', 'en:prepared-meats', 'en:poultries', 'en:fishes', 'en:fishes-and-their-products', 'en:seafood'],
+            'bread-cereals' => ['en:breads', 'en:breakfast-cereals', 'en:cereals-and-their-products', 'en:pastas', 'en:rices', 'en:flours'],
+            'sauces-spreads' => ['en:sauces', 'en:condiments', 'en:spreads', 'en:fats', 'en:vegetable-oils', 'en:jams', 'en:honeys', 'en:spices'],
+            'fruit-veg' => ['en:fruits-and-vegetables-based-foods', 'en:fruits', 'en:vegetables', 'en:legumes', 'en:nuts', 'en:fruits-based-foods', 'en:vegetables-based-foods'],
         ],
         'household' => [
             'laundry' => ['laundry', 'fabric'],

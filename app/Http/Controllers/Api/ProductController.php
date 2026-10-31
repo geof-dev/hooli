@@ -61,7 +61,7 @@ class ProductController extends Controller
         $products = $candidates
             ->when($type, fn ($query, string $type) => $query->whereJsonContains('types', $type))
             ->orderByDesc('confirmations')
-            ->when($category === 'food', fn ($query) => $query->orderByDesc('nutrition->fibre'))
+            ->when(in_array($category, config('hooli.food_categories'), true), fn ($query) => $query->orderByDesc('nutrition->fibre'))
             ->latest('updated_at')
             ->limit(40)
             ->get();

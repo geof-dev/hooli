@@ -47,7 +47,7 @@ final class LabelReader
         The fields:
         - name: the product's name as printed, without the brand. If none can be read, a short plain description, such as "Non-stick frying pan".
         - brand: as printed, or null.
-        - kind and category: what the product is. A medicine is of kind and category medicine. Pans, food containers and kitchen utensils are kitchenware, of kind household.
+        - kind and category: what the product is. A medicine is of kind and category medicine. Pans, food containers and kitchen utensils are kitchenware, of kind household. A food goes in its aisle: dairy (eggs too), meat-fish, bread-cereals (pasta, rice and flour too), fruit-veg (nuts and pulses too), snacks-sweets, ready-meals, sauces-spreads (oils, jams and spices too) or baby-food; food only when none of them fits.
         - ingredients: one entry per ingredient, or per material for an object. For a list you can read, every ingredient in the label's order; for a medicine, its active substances first, then the other ingredients the photo shows. For a front, what this product contains as far as you know it, or else what such a product usually contains or is made of (a non-stick pan: its coating, the metal of its body, its handle). Leave out percentages, footnote marks and headings such as "Ingredients:". For each:
           - name: its INCI name when it has one (Aqua, Glycerin, Retinyl Palmitate), an active substance its INN (Ibuprofen), anything else its English name (sugar, wheat flour, PTFE non-stick coating). A food additive may keep its E number (E211).
           - role: what it does in this product, in two to five words (Moisturiser, Preservative, Painkiller, Non-stick coating).
