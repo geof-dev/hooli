@@ -54,8 +54,6 @@
     "Prices aren’t set yet. Our aim is that scanning products and reading the everyday answers cost nothing. People on the waitlist will hear first.": "Hinnad pole veel paigas. Meie eesmärk on, et toodete skaneerimine ja igapäevaste vastuste lugemine oleks tasuta. Ootenimekirjas olijad kuulevad esimesena.",
     "Care for your hormones, one scan at a time.": "Hooli oma hormoonidest – skaneeri ja saa aru.",
     "Hooli reads the labels on your cosmetics, food, household products and medicines, and tells you in plain words what matters for your hormones. Calm, evidence-based, and adapted to you.": "Hooli loeb sinu kosmeetika, toidu, kodukeemia ja ravimite silte ning ütleb lihtsate sõnadega, mis on sinu hormoonide jaoks oluline. Rahulikult, tõenduspõhiselt ja just sulle kohandatult.",
-    "A mobile app, in development.": "Mobiilirakendus, mis on valmimas.",
-    "One email the day it opens.": "Üks e-kiri päeval, mil see avaneb.",
     "The answers exist. They’re just hard to find.": "Vastused on olemas. Neid on lihtsalt raske leida.",
     "Read the guide: :title": "Loe juhendit: :title",
     "How Hooli works": "Kuidas Hooli töötab",
@@ -146,5 +144,12 @@
     "Menopause": "Menopaus",
     "Taking care of my hormones in general": "Hoolin oma hormoonidest üldiselt",
     "Something else": "Midagi muud",
-    "Privacy policy": "Privaatsuspoliitika"
+    "Privacy policy": "Privaatsuspoliitika",
+    "Get the app": "Laadi rakendus alla",
+    "Get it on Google Play": "Hankige teenusest Google Play",
+    "Download on the App Store": "Laadi alla App Store’ist",
+    "App Store": "App Store",
+    "Coming soon": "Tulekul",
+    "On iPhone? One email the day Hooli is on the App Store.": "iPhone’is? Üks e-kiri päeval, mil Hooli jõuab App Store’i.",
+    "Google Play and the Google Play logo are trademarks of Google LLC. App Store is a service mark of Apple Inc.": "Google Play ja Google Play logo on Google LLC kaubamärgid. App Store on Apple Inc. teenindusmärk."
 }

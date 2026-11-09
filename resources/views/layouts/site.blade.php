@@ -124,6 +124,8 @@
         </p>
     </div>
     <p class="wrap mt-12 border-t border-line-pine pt-6 text-[15px] text-on-pine-2">© {{ date('Y') }} Hooli. {{ __('No cookies, no trackers on this site.') }}</p>
+    {{-- The attribution the store badges' guidelines ask for. --}}
+    <p class="wrap mt-2 text-[13px] text-on-pine-2">{{ __('Google Play and the Google Play logo are trademarks of Google LLC. App Store is a service mark of Apple Inc.') }}</p>
 </footer>
 </body>
 </html>

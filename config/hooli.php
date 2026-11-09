@@ -4,6 +4,13 @@ return [
     // Where people write to us: the footer, the FAQ and the structured data name it.
     'contact' => env('HOOLI_CONTACT', 'hello@gethooli.app'),
 
+    // Where to get the app, for the home page's store badges. A store without an address shows its badge as coming
+    // soon: give the App Store one the day the iPhone app is out.
+    'stores' => [
+        'android' => env('HOOLI_PLAY_URL', 'https://play.google.com/store/apps/details?id=dev.independence.hooli'),
+        'ios' => env('HOOLI_APP_STORE_URL'),
+    ],
+
     // The site's languages, by the prefix of their URLs: English has none (/), French is /fr, Estonian /et. Each
     // language names itself, and gives its own word for the guides' address.
     'locales' => [

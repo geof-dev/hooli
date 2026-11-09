@@ -38,3 +38,26 @@ it('offers every situation in the waitlist form', function () {
         $response->assertSee('<option value="'.$value.'">'.e($label).'</option>', false);
     }
 });
+
+it('links to Google Play, and says the App Store is coming soon', function () {
+    $this->get('/')->assertOk()
+        ->assertSee('<a href="https://play.google.com/store/apps/details?id=dev.independence.hooli"', false)
+        ->assertSee('alt="Get it on Google Play"', false)
+        ->assertSee('Coming soon')
+        ->assertDontSee('apps.apple.com');
+    $this->get('/fr')->assertSee(asset('images/badges/google-play-fr.png'));
+
+    foreach (['en', 'fr', 'et'] as $locale) {
+        expect(public_path("images/badges/google-play-$locale.png"))->toBeFile();
+    }
+    expect(public_path('images/badges/app-store.svg'))->toBeFile();
+});
+
+it('links to the App Store once it has an address', function () {
+    config(['hooli.stores.ios' => 'https://apps.apple.com/app/id6828442716']);
+
+    $this->get('/')->assertOk()
+        ->assertSee('<a href="https://apps.apple.com/app/id6828442716"', false)
+        ->assertSee('alt="Download on the App Store"', false)
+        ->assertDontSee('Coming soon');
+});

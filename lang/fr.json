@@ -54,8 +54,6 @@
     "Prices aren’t set yet. Our aim is that scanning products and reading the everyday answers cost nothing. People on the waitlist will hear first.": "Les prix ne sont pas encore fixés. Notre objectif : que scanner des produits et lire les réponses du quotidien ne coûte rien. Les inscrits sur la liste d’attente seront informés en premier.",
     "Care for your hormones, one scan at a time.": "Prenez soin de vos hormones, un scan à la fois.",
     "Hooli reads the labels on your cosmetics, food, household products and medicines, and tells you in plain words what matters for your hormones. Calm, evidence-based, and adapted to you.": "Hooli lit les étiquettes de vos cosmétiques, de vos aliments, de vos produits ménagers et de vos médicaments, et vous dit simplement ce qui compte pour vos hormones. Calme, fondé sur des preuves, et adapté à vous.",
-    "A mobile app, in development.": "Une application mobile, en développement.",
-    "One email the day it opens.": "Un seul e-mail, le jour de son lancement.",
     "The answers exist. They’re just hard to find.": "Les réponses existent. Elles sont juste difficiles à trouver.",
     "Read the guide: :title": "Lire le guide : :title",
     "How Hooli works": "Comment fonctionne Hooli",
@@ -146,5 +144,12 @@
     "Menopause": "Ménopause",
     "Taking care of my hormones in general": "Prendre soin de mes hormones en général",
     "Something else": "Autre chose",
-    "Privacy policy": "Politique de confidentialité"
+    "Privacy policy": "Politique de confidentialité",
+    "Get the app": "Télécharger l’application",
+    "Get it on Google Play": "Disponible sur Google Play",
+    "Download on the App Store": "Télécharger dans l’App Store",
+    "App Store": "App Store",
+    "Coming soon": "Bientôt",
+    "On iPhone? One email the day Hooli is on the App Store.": "Sur iPhone ? Un seul e-mail, le jour où Hooli arrive sur l’App Store.",
+    "Google Play and the Google Play logo are trademarks of Google LLC. App Store is a service mark of Apple Inc.": "Google Play et le logo Google Play sont des marques de Google LLC. App Store est une marque de service d’Apple Inc."
 }

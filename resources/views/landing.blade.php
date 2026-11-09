@@ -70,10 +70,12 @@
             <div class="grid justify-items-start gap-7">
                 <h1 id="hero-title" class="text-[clamp(44px,6.6vw,84px)] leading-[1.02]">{{ __('Care for your hormones, one scan at a time.') }}</h1>
                 <p class="max-w-[34em] text-[clamp(18px,1.7vw,21px)] text-ink-2">{{ __('Hooli reads the labels on your cosmetics, food, household products and medicines, and tells you in plain words what matters for your hormones. Calm, evidence-based, and adapted to you.') }}</p>
-                {{-- The waitlist, where the promise is: an email is all it takes. The band lower down also asks the situation. --}}
+                {{-- The app, where the promise is: Android has it, the iPhone soon. --}}
+                @include('partials.store-badges')
+                {{-- And the waitlist, for the iPhone until then: an email is all it takes. The band lower down also asks the situation. --}}
                 <div class="grid w-full max-w-[34rem] gap-3">
                     @include('partials.waitlist-form', ['short' => true, 'id' => 'hero'])
-                    <p class="text-[15px] text-ink-2">{{ __('A mobile app, in development.') }} {{ __('One email the day it opens.') }}</p>
+                    <p class="text-[15px] text-ink-2">{{ __('On iPhone? One email the day Hooli is on the App Store.') }}</p>
                 </div>
             </div>
 
