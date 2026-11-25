@@ -1,13 +1,12 @@
 <?php
 
 use App\Guide;
-use App\Models\Subscriber;
 
 it('speaks French at /fr and Estonian at /et', function () {
     $this->get('/fr')->assertOk()
         ->assertSee('<html lang="fr">', false)
         ->assertSee('Prenez soin de vos hormones, un scan à la fois.')
-        ->assertSee('<form method="post" action="'.route('fr.waitlist.join').'"', false);
+        ->assertSee('alt="Télécharger dans l’App Store"', false);
 
     $this->get('/et')->assertOk()
         ->assertSee('<html lang="et">', false)
@@ -32,9 +31,8 @@ it('links every page to its translations, and calls English the default', functi
 it('has every word of every page in French and Estonian', function () {
     $missing = [];
     app('translator')->handleMissingKeysUsing(function (string $key, array $replace, ?string $locale) use (&$missing) {
-        // English needs no file: its words are the keys. The validator looks up messages of its own, which the
-        // site never shows: the waitlist writes its own.
-        if ($locale !== 'en' && ! str_starts_with($key, 'validation.')) {
+        // English needs no file: its words are the keys.
+        if ($locale !== 'en') {
             $missing[] = "$locale: $key";
         }
     });
@@ -43,23 +41,7 @@ it('has every word of every page in French and Estonian', function () {
         $this->get(localized_route('home', locale: $locale))->assertOk();
         $this->get(localized_route('guides', locale: $locale))->assertOk();
         Guide::all($locale)->each(fn (Guide $guide) => $this->get($guide->url())->assertOk());
-        $this->get(localized_route('home', locale: $locale).'?waitlist=joined')->assertOk();
-        $this->postJson(localized_route('waitlist.join', locale: $locale), ['email' => 'kadri'])->assertStatus(422);
-        $this->postJson(localized_route('waitlist.join', locale: $locale), ['email' => 'kadri@example.com', 'situation' => 'cancer'])->assertStatus(422);
     }
 
     expect(array_unique($missing))->toBe([]);
-});
-
-it('keeps the language someone joined in, and brings them back to it', function () {
-    $this->post('/fr/waitlist', ['email' => 'Marie@Example.fr'])->assertRedirect(url('/fr').'?waitlist=joined#waitlist');
-    $this->postJson('/et/waitlist', ['email' => 'kadri@example.ee'])->assertOk();
-
-    expect(Subscriber::where('email', 'marie@example.fr')->value('locale'))->toBe('fr')
-        ->and(Subscriber::where('email', 'kadri@example.ee')->value('locale'))->toBe('et');
-});
-
-it('tells the French a mistyped address in French', function () {
-    $this->postJson('/fr/waitlist', ['email' => 'marie'])->assertStatus(422)
-        ->assertJson(['message' => 'Saisissez une adresse e-mail du type nom@exemple.fr.']);
 });

@@ -20,8 +20,8 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->prepend(RedirectWww::class);
-        // No page sets a cookie: there are no accounts, so no session, and the only form is the waitlist's,
-        // which a honeypot and a rate limit guard instead of a CSRF token.
+        // No page sets a cookie: there are no accounts, so no session, and the site has no form to guard with a
+        // CSRF token.
         $middleware->web(remove: [
             EncryptCookies::class,
             AddQueuedCookiesToResponse::class,

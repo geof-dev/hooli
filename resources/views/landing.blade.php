@@ -1,6 +1,6 @@
 @php
     $title = __('Hooli: care for your hormones, one scan at a time');
-    $description = __('Hooli is a mobile app that scans everyday products and medicines for what may affect your hormones, and answers your daily questions with calm, evidence-based advice. Join the waitlist.');
+    $description = __('Hooli is a mobile app that scans everyday products and medicines for what may affect your hormones, and answers your daily questions with calm, evidence-based advice.');
     $contact = config('hooli.contact');
     $guides = \App\Guide::all(app()->getLocale())->keyBy('key');
 
@@ -49,8 +49,8 @@
         ['q' => __('What are endocrine disruptors?'), 'a' => __('Substances that can interfere with how hormones work. Some are found in everyday products: certain preservatives and UV filters in cosmetics, bisphenols in some plastics, PFAS in non-stick and waterproof coatings. EU rules ban or limit many of them, and you can lower your exposure further with a few simple habits.'), 'guide' => $guides['endocrine-disruptors']],
         ['q' => __('Is my data private?'), 'a' => __('Yes. Your health profile is used for one thing: adapting Hooli’s advice to you. It is never sold or used for advertising, and you can delete it whenever you like. Hooli follows the GDPR, the European data protection law that gives health data its strongest protection. This website sets no cookies and uses no trackers.')],
         ['q' => __('Where does Hooli’s information come from?'), 'a' => __('From health agencies and scientific assessments, such as those of the European Food Safety Authority, the European Chemicals Agency and the European Medicines Agency. Every answer shows its sources, so you can check them or take them to your doctor.')],
-        ['q' => __('Which countries will Hooli be available in?'), 'a' => __('Hooli starts in Europe, in English, with French and Estonian to follow. Safer swaps show products sold in your country. Join the waitlist and we’ll tell you when Hooli opens where you live.')],
-        ['q' => __('Is Hooli free?'), 'a' => __('Prices aren’t set yet. Our aim is that scanning products and reading the everyday answers cost nothing. People on the waitlist will hear first.')],
+        ['q' => __('Which countries will Hooli be available in?'), 'a' => __('Hooli starts in Europe, in English, with French and Estonian to follow. Safer swaps show products sold in your country.')],
+        ['q' => __('Is Hooli free?'), 'a' => __('Prices aren’t set yet. Our aim is that scanning products and reading the everyday answers cost nothing.')],
     ];
 
     $jsonLd = [
@@ -70,13 +70,8 @@
             <div class="grid justify-items-start gap-7">
                 <h1 id="hero-title" class="text-[clamp(44px,6.6vw,84px)] leading-[1.02]">{{ __('Care for your hormones, one scan at a time.') }}</h1>
                 <p class="max-w-[34em] text-[clamp(18px,1.7vw,21px)] text-ink-2">{{ __('Hooli reads the labels on your cosmetics, food, household products and medicines, and tells you in plain words what matters for your hormones. Calm, evidence-based, and adapted to you.') }}</p>
-                {{-- The app, where the promise is: Android has it, the iPhone soon. --}}
+                {{-- The app, where the promise is: on Google Play and the App Store. --}}
                 @include('partials.store-badges')
-                {{-- And the waitlist, for the iPhone until then: an email is all it takes. The band lower down also asks the situation. --}}
-                <div class="grid w-full max-w-[34rem] gap-3">
-                    @include('partials.waitlist-form', ['short' => true, 'id' => 'hero'])
-                    <p class="text-[15px] text-ink-2">{{ __('On iPhone? One email the day Hooli is on the App Store.') }}</p>
-                </div>
             </div>
 
             <div class="phone-crop -mb-px flex justify-center lg:justify-end lg:pr-8">
@@ -222,9 +217,7 @@
         </div>
     </section>
 
-    @include('partials.waitlist-band')
-
-    {{-- Questions people ask before joining. The same answers feed the FAQ structured data. --}}
+    {{-- Questions people ask before downloading. The same answers feed the FAQ structured data. --}}
     <section id="faq" class="gutter py-20 sm:py-28" aria-labelledby="faq-title">
         <div class="wrap grid gap-10 lg:grid-cols-[1fr_1.35fr] lg:gap-20">
             <h2 id="faq-title" class="text-[clamp(34px,4.2vw,52px)]">{{ __('Questions and answers') }}</h2>

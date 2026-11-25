@@ -8,7 +8,6 @@ it('shows the landing page with every section the brief asks for', function () {
         ->assertSee('Check your medication')
         ->assertSee('Clear answers to everyday questions')
         ->assertSee('Why I’m building Hooli')
-        ->assertSee('Be among the first to use Hooli')
         ->assertSee('Questions and answers');
 });
 
@@ -32,32 +31,22 @@ it('describes itself to search engines and link previews', function () {
         ->and(public_path('apple-touch-icon.png'))->toBeFile();
 });
 
-it('offers every situation in the waitlist form', function () {
-    $response = $this->get('/');
-    foreach (config('hooli.situations') as $value => $label) {
-        $response->assertSee('<option value="'.$value.'">'.e($label).'</option>', false);
-    }
+it('has no waitlist anymore', function () {
+    $this->get('/')->assertOk()->assertDontSee('<form', false)->assertDontSee('waitlist');
+    $this->post('/waitlist', ['email' => 'kadri@example.ee'])->assertNotFound();
 });
 
-it('links to Google Play, and says the App Store is coming soon', function () {
+it('links to Google Play and the App Store', function () {
     $this->get('/')->assertOk()
         ->assertSee('<a href="https://play.google.com/store/apps/details?id=dev.independence.hooli"', false)
         ->assertSee('alt="Get it on Google Play"', false)
-        ->assertSee('Coming soon')
-        ->assertDontSee('apps.apple.com');
+        ->assertSee('<a href="https://apps.apple.com/us/app/hooli-hormone-scanner/id6828442716"', false)
+        ->assertSee('alt="Download on the App Store"', false)
+        ->assertDontSee('Coming soon');
     $this->get('/fr')->assertSee(asset('images/badges/google-play-fr.png'));
 
     foreach (['en', 'fr', 'et'] as $locale) {
         expect(public_path("images/badges/google-play-$locale.png"))->toBeFile();
     }
     expect(public_path('images/badges/app-store.svg'))->toBeFile();
-});
-
-it('links to the App Store once it has an address', function () {
-    config(['hooli.stores.ios' => 'https://apps.apple.com/app/id6828442716']);
-
-    $this->get('/')->assertOk()
-        ->assertSee('<a href="https://apps.apple.com/app/id6828442716"', false)
-        ->assertSee('alt="Download on the App Store"', false)
-        ->assertDontSee('Coming soon');
 });

@@ -78,9 +78,6 @@
         <nav class="flex items-center gap-1 sm:gap-3" aria-label="{{ __('Main') }}">
             <a href="{{ localized_route('guides') }}" class="hidden rounded-full px-3 py-2 font-semibold text-ink-2 hover:text-ink sm:block" @if (request()->routeIs('*.guide*')) aria-current="page" @endif>{{ __('Guides') }}</a>
             @include('partials.language-menu')
-            <a href="#waitlist" class="btn ml-1 px-4 py-2.5 text-[15px]">
-                <span class="sm:hidden">{{ __('Join') }}</span><span class="hidden sm:inline">{{ __('Join the waitlist') }}</span>
-            </a>
         </nav>
     </div>
 </header>
@@ -96,7 +93,7 @@
                 @include('partials.icon-tile', ['class' => 'size-7'])
                 <span class="font-display text-[28px] leading-none">Hooli</span>
             </a>
-            <p class="max-w-[24em] text-on-pine-2">{{ __('Care for your hormones, one scan at a time. A mobile app, in development.') }}</p>
+            <p class="max-w-[24em] text-on-pine-2">{{ __('Care for your hormones, one scan at a time.') }}</p>
             <p><a class="link" href="mailto:{{ $contact }}">{{ $contact }}</a></p>
             <p><a class="link" href="{{ localized_route('privacy') }}">{{ __('Privacy policy') }}</a></p>
         </div>

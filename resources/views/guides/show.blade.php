@@ -84,6 +84,4 @@
             @include('guides.list', ['guides' => \App\Guide::all($locale)->reject(fn ($other) => $other->key === $guide->key)])
         </div>
     </section>
-
-    @include('partials.waitlist-band')
 @endsection

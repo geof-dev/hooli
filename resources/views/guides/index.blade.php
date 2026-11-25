@@ -27,6 +27,4 @@
             @include('guides.list')
         </div>
     </section>
-
-    @include('partials.waitlist-band')
 @endsection

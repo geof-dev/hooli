@@ -16,9 +16,6 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        // A person joins once; a few tries a minute leaves room for a typo.
-        RateLimiter::for('waitlist', fn (Request $request) => Limit::perMinute(8)->by($request->ip()));
-
         // The app looks up every scan, and a shopper scans fast. Each photo is a paid call to Claude, or two when the
         // first model can't make it out: twenty an hour is a long shop.
         RateLimiter::for('lookups', fn (Request $request) => Limit::perMinute(120)->by($request->ip()));

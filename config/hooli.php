@@ -4,11 +4,10 @@ return [
     // Where people write to us: the footer, the FAQ and the structured data name it.
     'contact' => env('HOOLI_CONTACT', 'hello@gethooli.app'),
 
-    // Where to get the app, for the home page's store badges. A store without an address shows its badge as coming
-    // soon: give the App Store one the day the iPhone app is out.
+    // Where to get the app, for the home page's store badges.
     'stores' => [
         'android' => env('HOOLI_PLAY_URL', 'https://play.google.com/store/apps/details?id=dev.independence.hooli'),
-        'ios' => env('HOOLI_APP_STORE_URL'),
+        'ios' => env('HOOLI_APP_STORE_URL', 'https://apps.apple.com/us/app/hooli-hormone-scanner/id6828442716'),
     ],
 
     // The site's languages, by the prefix of their URLs: English has none (/), French is /fr, Estonian /et. Each
@@ -22,19 +21,6 @@ return [
     // The guides, in the order the site lists them. Each is written once per language, in
     // resources/guides/{locale}/{key}.md.
     'guides' => ['endocrine-disruptors', 'progestins-meningioma', 'cosmetic-ingredients'],
-
-    // The waitlist's optional question. Keys are stored; labels are translated. The same list the app's
-    // profile will offer, so the answers say which situations to build for first.
-    'situations' => [
-        'thyroid' => 'Thyroid issues',
-        'meningioma' => 'Meningioma',
-        'endometriosis' => 'Endometriosis',
-        'pcos' => 'PCOS',
-        'pregnancy' => 'Planning a pregnancy',
-        'menopause' => 'Menopause',
-        'general' => 'Taking care of my hormones in general',
-        'other' => 'Something else',
-    ],
 
     // Whether the app's API may ask Claude to read the photo of a product. Off, the photos are refused, and the app
     // reads labels on the phone and sends us their text.
